@@ -4,10 +4,11 @@
 
 The bounded data/preprocessing package, tabular Transformer classifier,
 confidence-threshold novelty component, static random/targeted label flips,
-known-class classification metrics, and clean two-task/replay preparation are
-implemented. Kaggle T4 smoke, clean-baseline, and static poisoning comparisons
-ran. The continual notebook is prepared but unexecuted; replay poisoning,
-mitigation, and the one-command pipeline remain incomplete. Developers A+B+C are one owner;
+known-class classification metrics, clean two-task/replay preparation, and a
+simple frozen-teacher replay-label gate are implemented. Kaggle T4 smoke,
+clean-baseline, static poisoning, and clean continual comparisons ran. The
+replay-poisoning/mitigation notebook is prepared but unexecuted; stronger
+mitigation and the one-command pipeline remain incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
 ```text

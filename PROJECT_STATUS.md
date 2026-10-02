@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (clean continual/replay preparation)
+Last updated: 2026-10-03 (replay-poisoning/mitigation preparation)
 
 ## Current state
 
@@ -19,11 +19,11 @@ There is no executable end-to-end continual pipeline. The one-epoch Kaggle T4
 smoke and a later balanced-subset clean-baseline run completed. Neither
 establishes production/full-dataset or unknown-attack performance.
 
-`notebooks/kaggle_review2_clean_baseline.ipynb` and the static label-flip
-comparison have executed on Kaggle. Reusable clean two-task construction,
-class-balanced replay selection, and forgetting metrics are implemented.
-`notebooks/kaggle_review2_continual_replay.ipynb` is prepared but has not
-been executed. Replay poisoning and mitigation are not implemented.
+The clean baseline, static label-flip comparison, and clean two-task
+sequential/replay comparison have executed on Kaggle. Reusable task/replay,
+forgetting, and frozen-teacher replay-label gate APIs are implemented.
+`notebooks/kaggle_review2_replay_poison_mitigation.ipynb` is prepared but
+unexecuted. Stronger mitigation and replay-poisoning results do not exist.
 
 ## What is confirmed
 
@@ -84,9 +84,10 @@ been executed. Replay poisoning and mitigation are not implemented.
   remains skipped.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
-- Clean task/replay preparation is implemented but its Kaggle training
-  comparison has not run. Replay poisoning, mitigation, held-out novelty
-  evaluation, and one-command integration are not implemented.
+- Clean task/replay training has run, but its old-class and Benign results
+  remain weak. Replay-label poisoning and a simple gate are prepared, not
+  run. Stronger mitigation, held-out novelty evaluation, and one-command
+  integration remain unimplemented.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -142,16 +143,16 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run the clean continual/replay notebook on Kaggle T4 with the same attached
-input. Review Task 1 and both Task 2 arms' histories, metrics, forgetting,
-training-work counts, row indices, plots, and reload checks before choosing
-the next implementation task.
+Run the six-condition replay-poisoning/mitigation notebook on Kaggle T4 with
+the same attached input. Review within-run controls, gate audits, condition
+metrics, forgetting, training-work counts, and reload checks before choosing
+stronger replay balancing, timing backdoors, novelty evaluation, or streaming.
 
 ## Observed results
 
-The small smoke, clean balanced-subset, and static poisoning comparison
-results were observed. Continual forgetting, replay poisoning, held-out
-novelty, and mitigation have no observed result yet.
+Small smoke, clean balanced-subset, static poisoning, and clean continual
+results were observed. Replay-label poisoning, the gate's effectiveness,
+held-out novelty, and stronger mitigation have no observed result yet.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -230,3 +231,54 @@ Full `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 26 passed,
 syntax/Markdown/empty-output checks (23 cells, 11 code), and
 `git diff --check` passed. Local PyTorch/CUDA and private dataset execution
 were unavailable; no GPU training or continual result was generated here.
+
+## Observed Kaggle clean continual run reviewed on 2026-10-03
+
+Inspected the untracked `data/continual/continual.ipynb`, `manifest.json`,
+`summary.json`, `replay_buffer.npz`, and `training_curves.png`. The executed
+notebook has no error outputs. Source revision:
+`b2a0afc697272a9d093780057f38c63ee19340b0`; input checksum matches
+the prior combined flow collection. Tesla T4 runtime changed to Python
+`3.13.15`, PyTorch `2.11.0+cu128`, NumPy `2.1.3`, PyArrow `23.0.1`
+(earlier clean/static runs: Python `3.12.13`, PyTorch `2.10.0+cu128`,
+NumPy `2.0.2`, PyArrow `24.0.0` in the poisoning manifest). The 500-row
+replay buffer is `float32` `(500,54)`, has unique original row IDs and 100
+`int64` labels per old class 0–4. Task 1 checkpoint reload and both Task 2
+arm reloads were reported identical.
+
+Task 1 old-class test accuracy before Task 2 was
+`0.9686666666666667`. Sequential Task 2 training left old accuracy `0`,
+new accuracy `0.9377777777777778`, combined accuracy
+`0.3516666666666667`, and Benign FPR `1.0`. With clean balanced replay,
+old accuracy was `0.6826666666666666`, new accuracy
+`0.9433333333333334`, combined accuracy `0.7804166666666666`, and
+Benign FPR `0.9366666666666666`. Sequential/replay used 264/444 optimizer
+steps (8/12 epochs; 4,200/4,700 training rows per epoch). The plot shows
+the selected best validation epochs and strong divergence for sequential
+training. Replay retains substantial old knowledge compared with sequential
+fine-tuning, but old accuracy dropped by `0.286` from Task 1 and the Benign
+false-positive rate remains severe. This balanced-subset, single-seed result
+is not deployment-ready or an equal-compute comparison. The attached
+checkpoint was not supplied; it is not recreated or claimed locally.
+
+## Controlled replay-label poisoning and gate preparation on 2026-10-03
+
+Fetched origin; local/remote unified branch matched
+`a4676725d06aa993764b91f7f342d5a5b1f330ad` before edits. Published
+the NumPy-only mitigation/audit source commit
+`c636331fc9cdf2361357fd901d9c93411e3f59ba`, which the new notebook
+pins. The notebook regenerates clean Task 1 in the active Kaggle runtime,
+calibrates a 95th-percentile old-teacher label-inconsistency threshold on
+clean Task 1 validation, and pairs clean/random-20%/targeted-20% replay
+buffers with and without filtering. Random changes 100/500 labels;
+targeted changes 80/400 eligible old-attack labels (16% of all replay).
+The gate never receives simulator clean labels or changed indices; these
+are only for post-decision audit. Task 2 rows and trusted validation remain
+clean. No six-condition GPU run, mitigation metric, or replay-poisoning
+outcome has been observed yet.
+Focused `python3 -m unittest tests.test_label_consistency -v`: 5 passed.
+Full `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 31 passed,
+1 opt-in real-data check skipped. Source `compileall`, notebook JSON/code
+syntax/Markdown/empty-output checks (21 cells, 10 code), and
+`git diff --check` passed. Local PyTorch/CUDA and the private Kaggle input
+were unavailable; no Task 1 regeneration or six-condition GPU run occurred.

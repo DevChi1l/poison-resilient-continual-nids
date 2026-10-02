@@ -5,15 +5,15 @@
 - [ ] Documented, manageable flow-level CSV subset is available locally.
 - [x] Preprocessing fits on training data only and emits the canonical data contract.
 - [ ] Small Transformer can train and predict in a CPU smoke run.
-- [ ] Classification metrics are generated and saved.
+- [x] Classification metrics are generated and saved in recorded Kaggle runs.
 - [x] Confidence-threshold novelty baseline marks low-confidence samples as unknown (synthetic component verification only).
-- [ ] Task 1 then Task 2 incremental experiment runs.
-- [ ] Task 1 score is captured before and after Task 2; forgetting is calculated.
-- [ ] Label flipping runs at configurable rates, including clean (`0%`) and poisoned conditions.
-- [ ] Clean and poisoned outputs are saved separately.
+- [x] Task 1 then Task 2 clean incremental experiment ran on Kaggle.
+- [x] Task 1 scores before/after Task 2 and signed forgetting were recorded.
+- [x] Static label flipping ran at clean (`0%`) and poisoned rates; replay-label poisoning is prepared, not run.
+- [x] Clean/static-poisoning outputs were saved separately.
 - [ ] One command executes the configured demo pipeline.
 - [ ] README documents setup, input data, and demo command.
-- [ ] Architecture and component ownership can be explained by the team.
+- [x] Architecture and unified A+B+C ownership are documented.
 
 ## Time-boxed plan
 

@@ -10,8 +10,10 @@ documentation. Work is not assigned back to a former lettered owner.
 
 Use focused branches for focused changes. Preserve the existing historical
 branches because they show where the model and data foundations originated.
-The current novelty task uses `feature/unified-novelty`, based on the latest
-verified `feature/model-nids` commit.
+The ongoing unified Review-2 work uses `feature/unified-novelty`, originally
+based on the verified `feature/model-nids` foundation. The branch now also
+contains clean continual/replay, static poisoning, and the prepared
+replay-label consistency baseline. Do not assume `main` has these APIs.
 
 ## Shared-file owner
 

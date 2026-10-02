@@ -63,3 +63,49 @@ eligible rows, or 17.5% of all training rows: accuracy
 rate `0.06571428571428571` versus clean `0.025238095238095237`. Random
 10% accuracy and targeted 10% macro-F1 slightly exceeded control; a
 single-seed comparison does not show that poisoning always worsens scores.
+
+## Prepared replay-label corruption and consistency-gate study
+
+This is a distinct threat model from static training-label corruption. After
+training Task 1 cleanly, an attacker changes labels on the *stored old-class
+replay buffer* before Task 2 reuses it. The 4,200 new-class Task 2 training
+rows, clean seen-class validation, replay features, and Task 1 checkpoint
+remain untouched. One seed-42 balanced buffer contains 500 unique Task 1
+training rows, 100 per global old-class ID 0–4. Random 20% selects 100/500
+replay rows and replaces each label with a different old ID. Targeted 20%
+selects 80/400 eligible old-attack rows (IDs 1–4) and changes their supplied
+label to Benign (ID 0): that is 16% of the full 500-row buffer. These are
+not equal full-buffer budgets.
+
+The six default conditions pair each buffer with no gate and the same buffer
+with the gate: clean, random 20%, targeted 20%. Every Task 2 model starts
+from an independent reload of one newly trained clean Task 1 checkpoint,
+expands the same output classes, and uses identical seeds/hyperparameters.
+The attached prior clean run did not include its Task 1 checkpoint and ran
+under a different Kaggle Python/PyTorch stack, so the notebook regenerates
+Task 1 and uses its own within-run controls.
+
+The frozen Task 1 teacher scores each replay candidate as
+`1 - P_teacher(supplied old label | features)`, mapping the supplied external
+label through `teacher.class_ids`. A threshold is fixed at the 95th
+percentile of scores on *clean Task 1 validation* before attacked conditions.
+Only scores above the threshold are quarantined; equal scores stay. The
+gate receives replay features, supplied labels, teacher probabilities and
+class mapping, and this frozen threshold. It does **not** receive the
+simulator's clean labels or changed-index mask, and it never restores a
+label. An independent audit later uses those hidden records to report poison
+rejection, clean false rejection, retained poison fraction, and retained
+counts by supplied class. Empty retained replay is explicitly represented as
+no replay to the model. The gate is never applied to genuinely new Task 2
+classes, which the old teacher was not trained to recognize.
+
+The notebook compares each filtered attack with its identical unfiltered
+attack and with clean-filtered replay; clean-unfiltered is also reported.
+It records old/new/combined metrics, signed forgetting, Benign FPR,
+attack-to-Benign errors, epochs, optimizer steps, timings, and checkpoint
+reloads. Filtering can remove clean examples, retain poison, or change
+training work; improvement is not assumed. The teacher saw the clean Task 1
+distribution, so this is a narrow label-consistency baseline, not evidence
+against backdoors, adaptive attackers, arbitrary new-class poisoning, or
+production deployment. No replay-poisoning or gate outcome has been observed
+yet.

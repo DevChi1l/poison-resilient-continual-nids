@@ -878,3 +878,163 @@ Likely faculty questions:
   improved. We retain its sign.
 - **Is this replay poisoning?** No. The memory contains clean Task 1 training
   exemplars. Replay poisoning and mitigation are later phases.
+
+---
+
+## 2026-10-03: observed clean continual result and prepared replay-label gate
+
+### Step 1: inspect the clean continual evidence before changing anything
+
+**Inspected, not trained in this session:** untracked
+`data/continual/continual.ipynb`, `manifest.json`, `summary.json`,
+`replay_buffer.npz`, and `training_curves.png`. The executed notebook has no
+error outputs. The replay array is `(500, 54)` `float32` with 500 unique raw
+row IDs and 100 `int64` labels per old global class. The source revision is
+`b2a0afc697272a9d093780057f38c63ee19340b0`; its input checksum matches
+the reviewed combined collection. The runtime was Tesla T4, Python 3.13.15,
+PyTorch 2.11.0+cu128, NumPy 2.1.3, PyArrow 23.0.1. Earlier static-poisoning
+artifacts reported Python 3.12.13, PyTorch 2.10.0+cu128, NumPy 2.0.2,
+PyArrow 24.0.0, so exact weights should not be assumed reproducible across
+these runtimes.
+
+Observed Task 1 old-class accuracy before Task 2 was
+`0.9686666666666667`. Sequential fine-tuning left old accuracy `0`, new
+accuracy `0.9377777777777778`, combined accuracy
+`0.3516666666666667`, and Benign FPR `1.0`. Clean class-balanced replay
+left old accuracy `0.6826666666666666`, new accuracy
+`0.9433333333333334`, combined accuracy `0.7804166666666666`, and Benign
+FPR `0.9366666666666666`. The sequential/replay arms used 264/444 optimizer
+steps (8/12 epochs). The plotted clean validation curves and manifest agree
+that model selection occurred separately for the two arms. Replay improved
+old retention relative to sequential, but old accuracy still lost `0.286`
+from Task 1 and Benign errors remained severe. This single-seed
+balanced-subset comparison is neither equal-compute nor deployment evidence.
+The attached files include the replay buffer but no Task 1 checkpoint; we
+do not fabricate an equivalent local checkpoint.
+
+### Step 2: implement the frozen-teacher consistency baseline
+
+**New code:** `src/mitigation/label_consistency.py` exports
+`label_inconsistency_scores`, `calibrate_label_consistency`,
+`apply_label_consistency_gate`, and immutable result records. The inputs to
+scoring are teacher probability rows, supplied replay labels, and explicit
+`teacher.class_ids`; for each row, the score is
+`1 - P_teacher(supplied_label)`. The supplied label is mapped to its
+probability *column* through `class_ids`, never used as an array index.
+For a teacher with columns `[10, 0, 5]`, probabilities `[0.1, 0.7, 0.2]`
+and supplied label `0` give score `0.3`, not `0.9`.
+
+**Calibration:** the notebook uses the new clean Task 1 teacher on *clean
+Task 1 validation only*, computes these scores, and fixes their predeclared
+95th percentile using linear quantile interpolation. This threshold is
+frozen before attacked conditions and not chosen from their test scores.
+Candidates with score `> threshold` are quarantined; equality stays. For
+example, threshold `0.25` retains score `0.25` but rejects `0.875`.
+
+**Information boundary:** the gate receives only replay features, supplied
+labels, teacher probabilities/class mapping, and the calibrated threshold.
+It has no argument for original clean labels or simulator changed indices;
+it cannot restore labels. It returns copied retained arrays and masks.
+If every row is quarantined, its model-replay adapter returns `None` so the
+existing `fit` runs explicitly without replay. The teacher is a frozen
+five-class model; using it to filter genuine Task 2 classes 5–7 would
+wrongly penalize novelty, so the gate is applied only to old replay rows.
+The teacher saw the clean Task 1 distribution, which is a narrow assumption,
+not protection against backdoors or arbitrary new-class poisoning.
+
+### Step 3: keep simulator truth in a separate audit
+
+**New code:** `src/evaluation/replay_gate.py` exports
+`replay_gate_metrics`. It takes the already decided retained mask plus
+simulator-only original labels and changed positions. It verifies that
+changed indices correspond exactly to altered labels, then reports poison
+rejection, clean false rejection, retained poison fraction, and retained
+replay counts per *supplied* class. Clean controls have no poison denominator;
+their poison rejection/fraction are `None`, not an invented zero.
+For example, if an 80-row targeted poison loses 10 poisoned rows at the
+gate, poison rejection is `10/80 = 0.125`; if it also loses 5 of 420 clean
+rows, clean false rejection is `5/420`. These audit records must never feed
+the gate. This separation makes accidental oracle filtering visible.
+
+### Step 4: prepare six controlled Kaggle conditions
+
+**New notebook:** `notebooks/kaggle_review2_replay_poison_mitigation.ipynb`
+pins published gate/audit source
+`c636331fc9cdf2361357fd901d9c93411e3f59ba`. It regenerates a fresh
+clean Task 1 checkpoint because the attachment has none, reusing the existing
+2,000-per-class seeded sampler, fixed split, global-ID task builder,
+Task-1-training-only preprocessing, and 100-per-old-class replay selector.
+It keeps raw dataset row IDs and the input checksum in its manifest. Task 1
+is fitted on IDs 0–4 only. The model and teacher reload are checked before
+the gate threshold is calibrated.
+
+The threat model changes **only replay labels** after clean Task 1. The
+six conditions are clean replay ± gate, random 20% replay-label flipping
+± gate, and targeted 20% old attacks→Benign ± gate. The existing
+`apply_label_flip` builds each attack once; its filtered/unfiltered pair uses
+the identical supplied labels. Random rate uses all 500 replay rows and
+changes 100; targeted rate uses 400 eligible IDs 1–4 and changes 80 to ID
+0, only 16% of the full buffer. Both use seed 42, old-class destinations
+only, no feature changes. Task 2's 4,200 new-class training rows and the
+clean seen-class validation pool are unchanged.
+
+Every Task 2 condition independently reloads the *new* Task 1 checkpoint,
+expands global class IDs to 0–7, asserts the complete initial-weight hash
+matches all other conditions, resets the training RNG, and fits with the
+same architecture/hyperparameters. Different retained replay sizes may
+change optimizer steps; the notebook records rows, epochs, steps, and time.
+Clean validation loss selects checkpoints, with the test set held out.
+After selection it reports old/new/combined classification, per-class
+recall/F1, signed forgetting, Benign FPR, old attack-to-Benign errors,
+gate audit counts, and checkpoint reload verification. It compares filtered
+attacks both to their identical unfiltered attack and to the clean-filtered
+control, without assuming improvement.
+
+The timestamped Kaggle folder includes `manifest.json`,
+`comparison.json`, `calibration.json`, `row_indices.npz`, frozen
+`preprocessing.json`, the clean replay buffer, Task 1 history/metrics and
+checkpoint, six separate condition folders with attack/config/gate
+audit/history/metrics/checkpoint and per-row audit arrays, plus
+`training_curves.png`. The original clean labels and changed masks are
+written for post-run auditing only. No replay-poisoning or gate performance
+has been observed yet.
+
+### Step 5: verification, limits, and next work
+
+`python3 -m unittest tests.test_label_consistency -v` passed five synthetic
+tests for noncontiguous probability-to-class mapping, clean-quantile
+calibration, equality/empty gate decisions, non-mutation, invalid inputs,
+and random/targeted budget + audit arithmetic. The full local
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 32 tests:
+31 passed, one opt-in real-data test skipped. `compileall`, notebook
+JSON/code syntax and Markdown-stage/empty-output validation, and
+`git diff --check` passed. The notebook has 21 cells, 10 code, no saved
+results. Local PyTorch/CUDA and the private Kaggle input remain unavailable,
+so Task 1 regeneration and all six Task 2 conditions still require Kaggle.
+Next phases after inspecting actual execution: stronger replay balancing,
+timing backdoors, held-out novelty evaluation, and full-data streaming.
+
+### How to explain this in Review 2
+
+Our first continual run showed that replay helped old-class retention, but
+Benign errors remained too high. We now test a narrower attacker: someone
+changes labels on saved old examples before we rehearse them. A clean Task 1
+teacher asks how well each supplied label agrees with its probability for
+that class. We fix a cutoff from clean validation, quarantine suspicious
+replay rows, and compare paired clean and attacked updates. We separately
+measure how many truly poisoned and clean rows were removed; the filter
+does not get that hidden answer key. We will not call it effective until
+Kaggle produces and we inspect the six-condition results.
+
+Likely faculty questions:
+
+- **Is the threshold chosen to improve attacked test results?** No. It is
+  fixed at the clean Task 1 validation score's 95th percentile first.
+- **Does filtering know which labels were flipped?** No. Original labels
+  and changed-index masks exist only in the later audit.
+- **Why not filter new Task 2 classes?** The old teacher has no output for
+  IDs 5–7, so that would conflate novelty with poisoning.
+- **Are random and targeted 20% equal budgets?** No: 100/500 versus
+  80/400 eligible, or 16% of all replay for targeted.
+- **Does this prove backdoor resistance?** No. It examines old replay-label
+  inconsistency under one teacher, one subset, and one seed.

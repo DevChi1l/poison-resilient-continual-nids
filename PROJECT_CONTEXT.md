@@ -39,11 +39,12 @@ Synthetic data may be used only for a component smoke test and must never be pre
   pandas, and PyArrow; the dependency manifest pins the data path separately.
 - `torch` and `pytest` are not installed in the current system environment.
 - Data/preprocessing, the tabular Transformer, NumPy novelty baseline,
-  static label flips, clean two-task construction, replay selection, and
-  known-class/forgetting evaluators exist. Kaggle T4 smoke, balanced clean,
-  and static poisoning runs have been observed; see `PROJECT_STATUS.md`.
-  None is a final NIDS or held-out unknown-attack result. The clean continual
-  comparison is prepared but not yet run.
+  static label flips, clean two-task construction, replay selection,
+  known-class/forgetting evaluators, and a simple replay-label consistency
+  gate exist. Kaggle T4 smoke, balanced clean, static poisoning, and clean
+  continual runs have been observed; see `PROJECT_STATUS.md`. None is a
+  deployment or held-out unknown-attack result. Replay-label poisoning and
+  the gate comparison are prepared but not yet run.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

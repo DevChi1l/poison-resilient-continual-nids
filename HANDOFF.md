@@ -504,3 +504,68 @@ summary, Task 1/arm histories and metrics, row/replay indices and copied
 replay buffer, preprocessing
 state, training curves, and checkpoint reload flags. Review observed results
 before replay poisoning, mitigation, timing backdoors, or full-data streaming.
+
+---
+
+## 2026-10-03: replay-label poisoning and consistency gate prepared
+
+Owner: unified A+B+C. Branch: `feature/unified-novelty`. Fetched origin;
+local/remote HEAD matched `a4676725d06aa993764b91f7f342d5a5b1f330ad`
+before edits. Published the source API commit
+`c636331fc9cdf2361357fd901d9c93411e3f59ba` normally. The new Kaggle
+notebook pins that full SHA. No main merge.
+
+Inspected untracked `data/continual/continual.ipynb`, `manifest.json`,
+`summary.json`, `replay_buffer.npz`, and `training_curves.png`. The executed
+notebook has no error outputs; the buffer has 500 unique rows, 100 per old
+class. Source `b2a0afc697272a9d093780057f38c63ee19340b0`, Tesla T4,
+Python 3.13.15, PyTorch 2.11.0+cu128, NumPy 2.1.3, PyArrow 23.0.1. Prior
+static-poisoning runtime used Python 3.12.13, PyTorch 2.10.0+cu128, NumPy
+2.0.2, PyArrow 24.0.0. No Task 1 checkpoint was attached, so the new
+notebook trains it afresh and compares conditions only within its own run.
+
+Observed old-class accuracy before Task 2 `0.9686666666666667`. Sequential
+after: old `0`, new `0.9377777777777778`, combined
+`0.3516666666666667`, Benign FPR `1.0`. Clean replay after: old
+`0.6826666666666666`, new `0.9433333333333334`, combined
+`0.7804166666666666`, Benign FPR `0.9366666666666666`. Sequential/replay
+used 264/444 optimizer steps. Replay helped relative to sequential but
+Benign forgetting remains severe, and this single-seed balanced-subset
+baseline is not deployment-ready or equal-compute evidence.
+
+New `src/mitigation/label_consistency.py` scores supplied replay labels
+through explicit teacher `class_ids`, calibrates a fixed 95th-percentile
+threshold on clean Task 1 validation, and quarantines scores strictly above
+it. It returns copies and `None` if no row remains. The gate has no clean
+simulator labels or changed-mask input. New
+`src/evaluation/replay_gate.py` receives those hidden records *afterward*
+to audit poison rejection, clean false rejection, retained poison fraction,
+and retained counts by supplied class. Synthetic tests cover mapping,
+calibration, non-mutation, equality at threshold, empty replay, invalid
+inputs, and random/targeted budget accounting.
+
+`notebooks/kaggle_review2_replay_poison_mitigation.ipynb` prepares six paired
+conditions: clean ± gate; random 20% ± gate; targeted 20% old attacks→Benign
+± gate. Random budget is 100/500; targeted is 80/400 eligible, or 16% of
+the full buffer. Each pair reuses the identical corrupted labels. All six
+Task 2 models independently reload one new clean Task 1 checkpoint, verify
+matching expanded initial weights, and use the same clean Task 2 data and
+trusted validation. Condition outputs include audit arrays/JSON, history,
+metrics, configuration, checkpoint/reload, timing, and optimizer steps;
+shared output includes the calibration, split/preprocessing/replay records,
+comparison, and plot. This notebook is **prepared, not executed**.
+
+Next: run the notebook on Kaggle with Internet, GPU, and the same private
+Parquet file. Return the executed notebook and timestamped output folder,
+especially `manifest.json`, `comparison.json`, `calibration.json`,
+Task 1 metrics/history, each condition's `attack.json`, `gate_audit.json`,
+`replay_audit.npz`, `history.json`, `metrics.json`, and checkpoint reload
+flags, plus curves. Review observed results before stronger replay balancing,
+timing backdoors, novelty evaluation, or full-data streaming. Do not infer
+that filtering improves performance without the run.
+
+Verification: focused label-consistency suite 5 passed; repository
+`unittest` discovery 31 passed and 1 opt-in real-data check skipped.
+`compileall`, notebook JSON/code syntax/Markdown-stage/empty-output checks
+(21 cells, 10 code), and `git diff --check` passed. Local PyTorch/CUDA and
+the private Kaggle input were unavailable, so no local GPU result is claimed.
