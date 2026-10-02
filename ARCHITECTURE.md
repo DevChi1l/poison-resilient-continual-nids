@@ -55,6 +55,17 @@ The optional `verbose=True` prints per-epoch observed training and validation
 values; it does not change validation-loss early stopping or best-state
 restoration.
 
+For the optional clean replay-exposure comparison, `ModelConfig` adds
+`training_sampler='shuffled'|'class_balanced'` (default `shuffled`) and an
+optional `sampler_seed` (defaulting to the model seed). Balanced mode assigns
+each combined Task 2 + replay row inverse-frequency weight from its supplied
+class label, then uses a seeded PyTorch `WeightedRandomSampler` with
+replacement and exactly one draw per combined row per epoch. It does not
+enlarge the stored replay buffer. Training history exposes expected
+class probabilities, actual per-epoch counts, unique replay examples drawn,
+draw/optimizer-step counts, and sampler generator-state hashes. The ordinary
+shuffled path remains the default and must not supply a conflicting sampler.
+
 ## Novelty contract
 
 `src/novelty/` will consume model probabilities only:
@@ -76,6 +87,12 @@ unknown mask. `class_ids` is mandatory because probability column positions are
 not external class IDs. Probability rows are validated as finite values in
 `[0, 1]` whose sums are approximately one. An empty `(0, n_classes)` batch is
 valid. Confidence equal to the threshold is known.
+The held-out protocol calibrates the fifth percentile of maximum
+probability on Task 1 **validation** rows only, before looking at Task 2
+rows. The reusable `src.evaluation.novelty_metrics` reports unknown
+precision/recall/F1, known false rejection, and per-unknown-class recall on
+Task 1 known-test and Task 2 held-out-test rows. This is evaluation of the
+confidence baseline, not a promise that it works.
 
 ## Poisoning contract
 

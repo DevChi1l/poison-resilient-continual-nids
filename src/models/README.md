@@ -31,14 +31,20 @@ with shape `(n_samples, n_features)` and one-dimensional integer class IDs.
 `verbose=True` prints observed train loss, validation loss, and validation
 accuracy after each epoch. Validation loss still selects and restores the best
 model state before `fit` returns; the default `verbose=False` preserves quiet
-existing callers.
+existing callers. `ModelConfig(training_sampler="class_balanced",
+sampler_seed=42)` optionally draws combined Task 2 + replay rows with
+inverse-frequency class weights and replacement. The default remains
+`training_sampler="shuffled"`. `history.to_dict()` records the sampler seed,
+expected class probabilities, actual per-epoch class counts, unique replay
+examples drawn, training draws, and optimizer steps. Balanced sampling changes
+exposure, not the number of stored replay examples.
 
 ## Continual-learning support
 
 Call `add_classes(new_class_ids)` before a task containing unseen labels, or
 let `fit` discover those labels. The classifier expands its output layer while
-retaining existing output weights. Replay data, when implemented by the team,
-is passed as `replay=(X_replay, y_replay)`.
+retaining existing output weights. Replay data is passed as
+`replay=(X_replay, y_replay)`.
 
 ## Compute modes
 

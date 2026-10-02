@@ -7,14 +7,18 @@ IDs supplied by the data pipeline.
 
 from __future__ import annotations
 
-from dataclasses import asdict, dataclass, replace
+from dataclasses import asdict, dataclass, field, replace
+import hashlib
 from pathlib import Path
+from numbers import Integral
 from typing import Any, Sequence
 
 import numpy as np
 import torch
 from torch import Tensor, nn
-from torch.utils.data import DataLoader, TensorDataset
+from torch.utils.data import DataLoader, TensorDataset, WeightedRandomSampler
+
+from src.training import inverse_frequency_weights
 
 
 @dataclass(frozen=True)
@@ -42,6 +46,8 @@ class ModelConfig:
     mixed_precision: bool = True
     seed: int = 42
     early_stopping_patience: int | None = 5
+    training_sampler: str = "shuffled"
+    sampler_seed: int | None = None
 
     def __post_init__(self) -> None:
         if self.num_features < 1:
@@ -60,6 +66,14 @@ class ModelConfig:
             raise ValueError("batch_size and epochs must be positive; num_workers non-negative")
         if self.early_stopping_patience is not None and self.early_stopping_patience < 1:
             raise ValueError("early_stopping_patience must be positive or None")
+        if self.training_sampler not in ("shuffled", "class_balanced"):
+            raise ValueError("training_sampler must be 'shuffled' or 'class_balanced'")
+        if self.sampler_seed is not None and (
+            isinstance(self.sampler_seed, bool)
+            or not isinstance(self.sampler_seed, Integral)
+            or self.sampler_seed < 0
+        ):
+            raise ValueError("sampler_seed must be a non-negative integer or None")
 
 
 @dataclass
@@ -71,6 +85,16 @@ class TrainingHistory:
     validation_accuracy: list[float]
     epochs_completed: int
     best_epoch: int | None
+    training_sampler: str = "shuffled"
+    sampler_seed: int | None = None
+    expected_class_probabilities: dict[int, float] = field(default_factory=dict)
+    sampled_counts_by_class: dict[int, int] = field(default_factory=dict)
+    sampled_counts_by_epoch: list[dict[int, int]] = field(default_factory=list)
+    sampler_state_sha256_by_epoch: list[str] = field(default_factory=list)
+    replay_buffer_rows: int = 0
+    unique_replay_rows_drawn: int = 0
+    training_draws: int = 0
+    optimizer_steps: int = 0
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -228,16 +252,35 @@ class TabularTransformerClassifier:
 
         train_features = self._validate_features(X_train)
         train_labels = self._validate_labels(y_train, expected_rows=train_features.shape[0])
+        replay_start = train_labels.size
+        replay_buffer_rows = 0
 
         if replay is not None:
             replay_features = self._validate_features(replay[0])
             replay_labels = self._validate_labels(replay[1], expected_rows=replay_features.shape[0])
+            replay_buffer_rows = replay_labels.size
             train_features = np.concatenate((train_features, replay_features), axis=0)
             train_labels = np.concatenate((train_labels, replay_labels), axis=0)
 
         self.add_classes(np.unique(train_labels).tolist())
         encoded_train_labels = self._encode_labels(train_labels)
-        train_loader = self._make_loader(train_features, encoded_train_labels, shuffle=True)
+        sampling_seed = self.config.seed if self.config.sampler_seed is None else int(self.config.sampler_seed)
+        weights_plan = inverse_frequency_weights(train_labels)
+        if self.config.training_sampler == "class_balanced":
+            train_loader = self._make_loader(
+                train_features, encoded_train_labels, shuffle=False,
+                sample_weights=weights_plan.row_weights, sampler_seed=sampling_seed,
+            )
+            expected_probabilities = weights_plan.expected_class_probabilities
+        else:
+            train_loader = self._make_loader(
+                train_features, encoded_train_labels, shuffle=True,
+                sampler_seed=sampling_seed,
+            )
+            expected_probabilities = {
+                class_id: count / len(train_labels)
+                for class_id, count in weights_plan.class_counts.items()
+            }
 
         validation_data: tuple[Tensor, Tensor] | None = None
         if X_val is not None or y_val is not None:
@@ -261,6 +304,12 @@ class TabularTransformerClassifier:
         scaler = torch.cuda.amp.GradScaler(enabled=amp_enabled)
 
         history = TrainingHistory([], [], [], epochs_completed=0, best_epoch=None)
+        history.training_sampler = self.config.training_sampler
+        history.sampler_seed = sampling_seed
+        history.expected_class_probabilities = expected_probabilities
+        history.sampled_counts_by_class = {int(class_id): 0 for class_id in self.class_ids}
+        history.replay_buffer_rows = replay_buffer_rows
+        replay_positions_drawn: set[int] = set()
         best_loss = float("inf")
         best_state: dict[str, Tensor] | None = None
         stale_epochs = 0
@@ -269,7 +318,19 @@ class TabularTransformerClassifier:
             self.network.train()
             total_loss = 0.0
             total_rows = 0
-            for batch_features, batch_labels in train_loader:
+            epoch_counts = {int(class_id): 0 for class_id in self.class_ids}
+            for batch_features, batch_labels, batch_positions in train_loader:
+                encoded_batch = batch_labels.numpy()
+                counts = np.bincount(encoded_batch, minlength=len(self.class_ids))
+                for column, class_id in enumerate(self.class_ids):
+                    count = int(counts[column])
+                    epoch_counts[int(class_id)] += count
+                    history.sampled_counts_by_class[int(class_id)] += count
+                if replay_buffer_rows:
+                    replay_positions_drawn.update(
+                        int(position) for position in batch_positions.numpy()
+                        if int(position) >= replay_start
+                    )
                 batch_features = batch_features.to(self.device, non_blocking=True)
                 batch_labels = batch_labels.to(self.device, non_blocking=True)
                 optimizer.zero_grad(set_to_none=True)
@@ -283,9 +344,18 @@ class TabularTransformerClassifier:
                 scaler.update()
                 total_loss += loss.detach().item() * batch_features.shape[0]
                 total_rows += batch_features.shape[0]
+                history.optimizer_steps += 1
 
             history.train_loss.append(total_loss / max(total_rows, 1))
             history.epochs_completed = epoch + 1
+            history.training_draws += total_rows
+            history.sampled_counts_by_epoch.append(epoch_counts)
+            history.unique_replay_rows_drawn = len(replay_positions_drawn)
+            if self.config.training_sampler == "class_balanced":
+                sampler = train_loader.sampler
+                history.sampler_state_sha256_by_epoch.append(
+                    hashlib.sha256(sampler.generator.get_state().numpy().tobytes()).hexdigest()
+                )
 
             if validation_data is None:
                 if verbose:
@@ -395,21 +465,36 @@ class TabularTransformerClassifier:
         classifier.network.to(classifier.device)
         return classifier
 
-    def _make_loader(self, features: np.ndarray, labels: np.ndarray, shuffle: bool) -> DataLoader:
+    def _make_loader(
+        self,
+        features: np.ndarray,
+        labels: np.ndarray,
+        shuffle: bool,
+        *,
+        sample_weights: np.ndarray | None = None,
+        sampler_seed: int | None = None,
+    ) -> DataLoader:
         generator = torch.Generator()
-        generator.manual_seed(self.config.seed)
+        generator.manual_seed(self.config.seed if sampler_seed is None else sampler_seed)
         dataset = TensorDataset(
             torch.as_tensor(features, dtype=torch.float32),
             torch.as_tensor(labels, dtype=torch.long),
+            torch.arange(len(labels), dtype=torch.long),
         )
-        return DataLoader(
-            dataset,
-            batch_size=self.config.batch_size,
-            shuffle=shuffle,
-            num_workers=self.config.num_workers,
-            pin_memory=self.device.type == "cuda",
-            generator=generator,
-        )
+        loader_kwargs = {
+            "batch_size": self.config.batch_size,
+            "num_workers": self.config.num_workers,
+            "pin_memory": self.device.type == "cuda",
+        }
+        if sample_weights is not None:
+            if shuffle:
+                raise ValueError("weighted sampling cannot also shuffle")
+            sampler = WeightedRandomSampler(
+                torch.as_tensor(sample_weights, dtype=torch.double),
+                num_samples=len(labels), replacement=True, generator=generator,
+            )
+            return DataLoader(dataset, sampler=sampler, **loader_kwargs)
+        return DataLoader(dataset, shuffle=shuffle, generator=generator, **loader_kwargs)
 
     def _validation_loss_and_accuracy(
         self,
