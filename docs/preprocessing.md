@@ -1,5 +1,9 @@
 # Developer B Preprocessing History and Handoff
 
+> Historical origin record. The data package is now owned by the unified A+B+C
+> team; lettered handoff labels below describe the sequence in which the code
+> was created, not current ownership.
+
 ## Purpose
 
 This document records the complete Review-2 preprocessing work for the local combined flow collection. It distinguishes verified observations from proposed or unrun work.
@@ -220,9 +224,11 @@ Negative values may appear in the final standardized matrices. This is correct: 
 | `tests/test_data_loader.py` | Seven synthetic smoke tests |
 | `data/metadata/combined_flow_collection_audit.md` | Dataset provenance limitation, audit observations, and policy |
 
-## Developer A handoff
+## Model integration example
 
-Developer A can use the data package now. There are no saved prepared-data files yet, so A should import the functions and construct the selected dataset inside the training entry point.
+The team can use the data package now. There are no saved prepared-data files
+yet, so the training entry point should import the functions and construct the
+selected dataset.
 
 ```python
 from src.data import (
@@ -263,7 +269,9 @@ dataset.class_names: dict[int, str], IDs 0 through 7
 dataset.preprocessor: fitted training-only medians, means, and scales
 ```
 
-Developer A must keep `dataset.class_names` aligned with the model head and probabilities. In particular, probability column `i` must correspond to `dataset.class_names[i]`.
+The model integration must keep `dataset.class_names` aligned with the model
+head and probabilities. In particular, probability column `i` must correspond
+to `dataset.class_names[i]`.
 
 For a future inference/demo run, reuse the same `dataset.preprocessor` state. Do not fit another preprocessor on validation, test, or inference data.
 
@@ -292,6 +300,6 @@ Not yet verified:
 
 - 2,000-per-class development preprocessing run.
 - Large Colab/T4 training run.
-- Developer A model integration.
+- Real-data model training (the source-level model/data integration exists).
 - Task 1/Task 2 class-incremental training.
-- Novelty, poisoning, replay, and evaluation experiments.
+- Held-out-class novelty evaluation, poisoning, replay, and evaluation experiments.

@@ -1,5 +1,11 @@
 # Developer B: Data and Continual Learning Step-by-Step Guide
 
+> Historical planning guide. Its separate A/B/C ownership rules, repository
+> snapshot, and immediate actions are superseded by `TEAM_WORKFLOW.md`,
+> `PROJECT_STATUS.md`, and `HANDOFF.md`. Developers A+B+C now form one owner;
+> do not wait for or assign work to a former lettered owner. Retain this file
+> only for the rationale and commands that remain technically useful.
+
 This guide turns the checked-in Review-2 architecture into a practical work sequence for Developer B. It covers setup, ownership, dataset preparation, data interfaces, continual tasks, verification, integration, and handoff. It does not claim that any of these implementation steps are already complete.
 
 ## 0. Know the repository state and team rules

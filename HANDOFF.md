@@ -1,5 +1,9 @@
 # Handoff
 
+> Latest continuation state: see the final dated section, “Unified ownership
+> and confidence novelty baseline.” Earlier sections are retained as historical
+> records and do not override the current ownership or implementation status.
+
 Date/time: 2026-10-02
 
 Developer: Repository initialization agent
@@ -167,3 +171,85 @@ Branch: `feature/model-nids`
 ### Remaining blocker
 
 - Add a tested, pinned PyTorch build in the shared environment, then run the opt-in test against `data/cic-collection.parquet`. No model metric or training result exists yet.
+
+---
+
+## 2026-10-02: Unified ownership and confidence novelty baseline
+
+Developer: Unified A+B+C team / Codex
+
+Branch: `feature/unified-novelty`, based on verified
+`93492d6dc3145d0d0bcbfd481b6305cda32cd502`
+
+### Completed
+
+- Fetched `origin` and verified that `origin/feature/model-nids` had not advanced
+  beyond `93492d6`; `main` and `feature/novelty-poisoning` still lacked the
+  model/data implementation.
+- Preserved the unrelated untracked `data/data_vis.ipynb` and created the
+  focused branch without changing or merging `main`.
+- Added the NumPy-only `src/novelty/` package. `detect_unknown()` implements the
+  documented strict rule `max_probability < threshold`.
+- Added `summarize_predictions()` and `NoveltyResult`. The helper requires
+  explicit `class_ids`, maps probability columns to external IDs, and returns
+  per-row confidence and unknown decisions.
+- Added validation for matrix shape, class-column presence, real finite values,
+  `[0, 1]` bounds, approximately unit row sums, scalar finite thresholds in
+  `[0, 1]`, and helper class-ID consistency. Empty batches are supported and
+  inputs are not changed.
+- Added nine synthetic `unittest` cases that do not require PyTorch or data.
+- Updated ownership and current-state documentation. A+B+C are one owner of all
+  component and shared integration areas.
+- Added `docs/IMPLEMENTATION_WALKTHROUGH.md` with the decision record, concrete
+  example, verification evidence, limitations, and Review-2 explanation.
+
+### Verification
+
+- Focused novelty suite: 9 passed, 0 failed, 0 skipped.
+- Repository `unittest` discovery: 16 passed, 0 failed, 1 skipped. The opt-in
+  real-data model/data smoke test remained skipped.
+- Novelty compile check: passed.
+- `git diff --check`: passed on the complete task diff.
+- Optional `pytest` check: could not start because `pytest` is not installed.
+- PyTorch is not installed, so no model training was attempted.
+- No dataset was loaded and no experiment metric was generated.
+
+### Files changed
+
+- `src/novelty/__init__.py`
+- `src/novelty/confidence.py`
+- `tests/test_novelty.py`
+- `AGENTS.md`
+- `TEAM_WORKFLOW.md`
+- `ARCHITECTURE.md`
+- `PROJECT_CONTEXT.md`
+- `PROJECT_STATUS.md`
+- `HANDOFF.md`
+- `REVIEW2_CHECKLIST.md`
+- `README.md`
+- `docs/IMPLEMENTATION_WALKTHROUGH.md`
+- `docs/DEVELOPER_B_GUIDE.md`
+- `docs/REVIEW2_PROJECT_FLOW.md`
+- `docs/TEAM_WORKFLOW.md`
+- `docs/preprocessing.md`
+- `scripts/README.md`
+- `src/README.md`
+- `src/models/README.md`
+- `src/data/__init__.py`
+- `requirements.txt`
+
+### Limitations and blockers
+
+- This is a confidence baseline, not evidence of unknown-attack detection.
+  Performance requires a held-out unknown-class protocol and recorded metrics.
+- No confidence threshold has been calibrated.
+- Real-data Transformer training remains unverified because PyTorch is absent.
+- Continual tasks, replay, poisoning, mitigation, evaluation, and integration
+  remain incomplete.
+
+### Next action
+
+Implement deterministic training-label flipping with a configurable rate and
+seed. Preserve original labels and report changed indices and achieved rate.
+Do not poison validation/test labels. Stop there before beginning the later
+continual-learning, replay, mitigation, and evaluation tasks.

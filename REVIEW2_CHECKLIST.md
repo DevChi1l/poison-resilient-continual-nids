@@ -3,10 +3,10 @@
 ## Working prototype requirements
 
 - [ ] Documented, manageable flow-level CSV subset is available locally.
-- [ ] Preprocessing fits on training data only and emits the canonical data contract.
+- [x] Preprocessing fits on training data only and emits the canonical data contract.
 - [ ] Small Transformer can train and predict in a CPU smoke run.
 - [ ] Classification metrics are generated and saved.
-- [ ] Confidence-threshold novelty baseline marks low-confidence samples as unknown.
+- [x] Confidence-threshold novelty baseline marks low-confidence samples as unknown (synthetic component verification only).
 - [ ] Task 1 then Task 2 incremental experiment runs.
 - [ ] Task 1 score is captured before and after Task 2; forgetting is calculated.
 - [ ] Label flipping runs at configurable rates, including clean (`0%`) and poisoned conditions.

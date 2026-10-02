@@ -2,20 +2,25 @@
 
 ## Current architecture
 
-No implementation exists yet. This document freezes the smallest interface contract needed for parallel work. Changes require Developer B's integration approval.
+The bounded data/preprocessing package, tabular Transformer classifier, and
+confidence-threshold novelty component are implemented. Real-data Transformer
+training, continual learning, poisoning, evaluation, mitigation, and the
+one-command pipeline are not yet verified or implemented as noted in
+`PROJECT_STATUS.md`. Developers A+B+C are one owner; interface changes still
+must be documented before integration.
 
 ```text
-Developer B: data + task stream
+Unified team: data + task stream
     PreparedDataset / IncrementalTask
               |
               v
-Developer A: Transformer model <---- replay batches from Developer B
+Unified team: Transformer model <---- future replay batches
     predicted labels + probabilities
               |
-              +--> Developer C: novelty, poisoning, metrics
+              +--> unified team: novelty, poisoning, metrics
               |
               v
-Developer B: one-command integration and saved result manifest
+Unified team: one-command integration and saved result manifest
 ```
 
 ## Canonical data contract
@@ -55,6 +60,18 @@ detect_unknown(probabilities, threshold) -> numpy.ndarray  # bool mask
 
 The Review-2 baseline is `max(probabilities) < threshold`. The function must not modify the model or input arrays.
 
+The implemented optional helper is:
+
+```python
+summarize_predictions(probabilities, class_ids, threshold) -> NoveltyResult
+```
+
+It returns predicted external class IDs, maximum probabilities, and the boolean
+unknown mask. `class_ids` is mandatory because probability column positions are
+not external class IDs. Probability rows are validated as finite values in
+`[0, 1]` whose sums are approximately one. An empty `(0, n_classes)` batch is
+valid. Confidence equal to the threshold is known.
+
 ## Poisoning contract
 
 `src/poisoning/` will expose:
@@ -77,4 +94,4 @@ novelty_metrics(is_unknown_true, is_unknown_pred) -> dict
 
 ## Integration contract
 
-`run_pipeline.py` (owned by Developer B) will accept one config, invoke components in order, print only observed values, and save a timestamped JSON result manifest under `results/`. It must support a small CPU smoke configuration before a larger dataset run.
+`run_pipeline.py` (owned by the unified team) will accept one config, invoke components in order, print only observed values, and save a timestamped JSON result manifest under `results/`. It must support a small CPU smoke configuration before a larger dataset run.

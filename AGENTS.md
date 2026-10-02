@@ -1,6 +1,9 @@
 # Agent Instructions
 
-This repository is a three-developer, Review-2 capstone prototype. The repository, not a chat session, is the source of truth.
+This repository is a Review-2 capstone prototype. Developers A, B, and C now
+operate as one unified owner of the model, data, continual-learning, novelty,
+poisoning, mitigation, evaluation, and integration code. The repository, not a
+chat session, is the source of truth.
 
 ## Start-of-session protocol
 
@@ -18,7 +21,7 @@ Then run `git status --short --branch`, inspect the recent log, and work only in
 ## Non-negotiable rules
 
 - Do not fabricate data, metrics, experiment results, or literature claims.
-- Do not overwrite or refactor another owner's core module. Document interface changes first.
+- Preserve unrelated work and document interface changes before changing an existing core module.
 - Do not download large datasets or commit datasets, checkpoints, secrets, or generated bulk results without explicit coordination.
 - Prefer a working, small, testable baseline over sophisticated unfinished methods.
 - Use fixed seeds and record inputs, configuration, and generated outputs for every experiment.

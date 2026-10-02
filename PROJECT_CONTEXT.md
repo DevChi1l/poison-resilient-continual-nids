@@ -35,9 +35,11 @@ Synthetic data may be used only for a component smoke test and must never be pre
 ## Environment observed on 2026-10-02
 
 - System Python observed: 3.14.6.
-- Developer B virtual environment: Python 3.12 with `numpy`, `pandas`, and `pyarrow` for Parquet auditing.
-- `torch` and `scikit-learn` are not yet pinned in a shared dependency manifest.
-- No model, source implementation, test suite, or experiment result currently exists.
+- The current system environment used for the novelty task has NumPy 2.4.6,
+  pandas, and PyArrow; the dependency manifest pins the data path separately.
+- `torch` and `pytest` are not installed in the current system environment.
+- Data/preprocessing, the tabular Transformer source, and the NumPy novelty
+  baseline now exist. No model training or NIDS experiment result exists.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

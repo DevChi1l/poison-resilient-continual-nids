@@ -4,9 +4,15 @@ This document explains the intended Review-2 prototype from input data to saved 
 
 ## Current repository state
 
-At the time this guide was updated, the repository contains planning/interface documents and a local `data/cic-collection.parquet` file of about 979 MiB, but no dependency manifest, Python source implementation, executable pipeline, tests, or experiment results. The file is tracked in local commit `80018dc` (`Added dataset`), and Git reports local `main` one commit ahead of `origin/main`. This conflicts with the repository rule against committing raw datasets: do not push that commit. Preserve the local file while untracking it and amending the unpushed commit, following [Developer B's guide](DEVELOPER_B_GUIDE.md). The dataset's provenance, schema, and labels have not been verified, so do not assume it is the intended CIC-IDS2017 data. No experiment has been run. Check `PROJECT_STATUS.md` for future updates.
+The bounded data/preprocessing path, tabular Transformer source, and NumPy
+confidence novelty component now exist. The local Parquet file is ignored and
+untracked, and its audited provenance limitation is documented. There is still
+no executable end-to-end pipeline or model/novelty experiment result. See
+`PROJECT_STATUS.md` for the exact current state.
 
-The repository defines three active technical roles: Developer A (model/training), Developer B (data/continual learning and integration), and Developer C (novelty/poisoning/evaluation). An earlier team prompt describes a fourth integration/QA person. Agree as a team whether that person is an additional reviewer/helper or whether the repository's three-role ownership table should be updated. Until then, follow the checked-in `TEAM_WORKFLOW.md` ownership and branch rules.
+Developers A+B+C now operate as one owner of every component and shared
+integration file. The stage labels below describe responsibilities, not
+separate people. Follow `TEAM_WORKFLOW.md`.
 
 ## Pipeline at a glance
 
@@ -50,13 +56,13 @@ Prepared numeric features + stable integer class IDs
 
 ## Stage-by-stage flow and ownership
 
-### 1. Choose and document a manageable dataset input — Developer B
+### 1. Choose and document a manageable dataset input — unified team
 
 The project blueprint selects CIC-IDS2017 as the initial primary dataset. A local `data/cic-collection.parquet` has been added, but its source, schema, labels, and relationship to CIC-IDS2017 are unverified. Inspect and identify it before treating it as the chosen dataset. Record source/version, file name, labels, selection rule, row count, and checksum or other useful provenance in `data/metadata/`. Do not commit raw data or large processed files. See [Developer B's guide](DEVELOPER_B_GUIDE.md) for how to preserve this local file while removing it from the unpushed commit.
 
 For Review 2, one reproducible subset is enough. Keep synthetic records strictly for code smoke checks; never report them as NIDS experiment evidence.
 
-### 2. Audit, split, and preprocess — Developer B
+### 2. Audit, split, and preprocess — unified team
 
 Inspect the actual CSV schema and label values before writing assumptions into code. Define the target label and fixed feature order. Exclude identifiers or fields that would reveal a target or duplicate the split. Decide how to handle invalid rows, infinities, missing values, duplicate flows, and categorical columns, and record those rules.
 
@@ -73,31 +79,34 @@ class_names: dict[int, str]   # integer ID -> original readable label
 
 The data interface must also expose or document split membership and enough metadata to reproduce the run. Stable class IDs must not silently change between Task 1 and Task 2.
 
-### 3. Train the static Transformer baseline — Developer A
+### 3. Train the static Transformer baseline — unified team
 
-Developer A owns `src/models/` and `src/training/`. A small tabular Transformer accepts the prepared numeric features and integer labels, trains using configurable settings, and supports prediction and class probabilities. GPU is intended for medium/final experiments; a tiny CPU configuration is needed for local integration. The classifier interface and the `class_ids` order are defined in `ARCHITECTURE.md`.
+The unified team owns `src/models/` and `src/training/`. A small tabular Transformer accepts the prepared numeric features and integer labels, trains using configurable settings, and supports prediction and class probabilities. GPU is intended for medium/final experiments; a tiny CPU configuration is needed for local integration. The classifier interface and the `class_ids` order are defined in `ARCHITECTURE.md`.
 
 Do not treat this classifier as the research contribution by itself. Save its configuration and checkpoint using the team's agreed artifact policy.
 
-### 4. Produce known-class metrics and novelty baseline — Developer C
+### 4. Produce known-class metrics and novelty baseline — unified team
 
-Developer C owns novelty and evaluation. Classification metrics should include macro-F1 and per-class precision/recall/F1; accuracy can be reported as a supplementary metric. Keep a confusion matrix when practical.
+The unified team owns novelty and evaluation. Classification metrics should include macro-F1 and per-class precision/recall/F1; accuracy can be reported as a supplementary metric. Keep a confusion matrix when practical.
 
 The Review-2 novelty baseline uses model probabilities only: a sample is marked `UNKNOWN` when its maximum class probability is below a configured threshold. Select/calibrate the threshold using validation data, then evaluate on a held-out set containing known and, where the task design permits, genuinely unseen classes. Report known/unknown behavior separately; a threshold baseline is not a sophisticated novelty claim.
 
-### 5. Run the continual-learning sequence — Developer B with A's model API
+### 5. Run the continual-learning sequence — unified team
 
 Define at least two class-incremental tasks and publish their class membership and sample counts. Keep a fixed evaluation set for Task 1 classes and a separate evaluation set for Task 2 classes. Train on Task 1, measure its score, update on Task 2, and measure Task 1 again plus Task 2 performance. The change in Task 1 performance is the basic forgetting/retention result.
 
-Before implementation, agree with Developer A how the classifier's output head handles newly introduced classes. The current classifier contract states prediction shapes and class IDs but does not yet specify an output-head expansion method. If replay is implemented, keep it optional and bounded; it must not delay a working sequential fine-tuning baseline.
+The existing classifier exposes output-head expansion through `add_classes()`.
+Before the continual runner is implemented, document how task class IDs and
+replay use that interface. If replay is implemented, keep it optional and
+bounded; it must not delay a working sequential fine-tuning baseline.
 
-### 6. Compare clean and poisoned updates — Developer C
+### 6. Compare clean and poisoned updates — unified team
 
-Developer C owns the label-flip harness and poisoning evaluation. Preserve original labels, make the corruption rate and seed configurable, record changed row indices and achieved rate, and compare a clean (`0%`) condition with at least one nonzero label-flip condition. Do not poison validation or test labels. Keep the poisoned training run's outputs separate from the clean run.
+The unified team owns the label-flip harness and poisoning evaluation. Preserve original labels, make the corruption rate and seed configurable, record changed row indices and achieved rate, and compare a clean (`0%`) condition with at least one nonzero label-flip condition. Do not poison validation or test labels. Keep the poisoned training run's outputs separate from the clean run.
 
 Any mitigation is a separate optional experiment. State exactly what it filters and measure both poison rejection and legitimate-data rejection; do not call a generic filter a complete defense.
 
-### 7. Integrate and save an auditable run — Developer B (integration lead in repository docs)
+### 7. Integrate and save an auditable run — unified team
 
 The eventual `run_pipeline.py` should take one config and call the components in a documented order. It should save a JSON result manifest under `results/` containing at least the experiment name, Git commit, dataset provenance, subset/split/task definitions, seeds, model and training settings, novelty threshold, poisoning settings, metrics, output paths, and limitations. Keep bulky artifacts out of Git.
 

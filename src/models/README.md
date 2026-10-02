@@ -1,6 +1,7 @@
 # Model / NIDS Component
 
-Owner: **Developer A** (`feature/model-nids`)
+Owner: **Unified A+B+C team**. The implementation originated on
+`feature/model-nids` and is now a shared team responsibility.
 
 `tabular_transformer.py` implements a numeric feature-token Transformer. Each
 preprocessed flow feature becomes a learned token, a Transformer encoder models
@@ -32,7 +33,7 @@ with shape `(n_samples, n_features)` and one-dimensional integer class IDs.
 
 Call `add_classes(new_class_ids)` before a task containing unseen labels, or
 let `fit` discover those labels. The classifier expands its output layer while
-retaining existing output weights. Replay data, when available from Developer B,
+retaining existing output weights. Replay data, when implemented by the team,
 is passed as `replay=(X_replay, y_replay)`.
 
 ## Compute modes
@@ -44,6 +45,6 @@ is passed as `replay=(X_replay, y_replay)`.
   architecture size, workers, learning rate, dropout, seed, and early stopping
   are all configurable in `ModelConfig`.
 
-PyTorch is required but is not pinned in this branch because the shared
-dependency manifest is owned by Developer B. This module has a torch-gated
-smoke test that will run once PyTorch is available.
+PyTorch is required but is not installed in the current system environment.
+The unified team owns the shared dependency manifest. This module has a
+torch-gated smoke test that will run once PyTorch is available.

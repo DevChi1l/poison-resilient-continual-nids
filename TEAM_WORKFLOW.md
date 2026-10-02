@@ -1,18 +1,21 @@
-# Three-Developer Workflow
+# Unified Team Workflow
 
 ## Ownership and branches
 
-| Developer | Branch | Owns | Deliverable for Review 2 |
-| --- | --- | --- | --- |
-| A - Model/NIDS | `feature/model-nids` | `src/models/`, `src/training/`, model entry points | Small Transformer, training, inference, checkpoint API |
-| B - Data/Continual Learning | `feature/data-continual` | `src/data/`, `src/continual_learning/`, data metadata | CSV preprocessing, Task 1/2 stream, replay/incremental driver |
-| C - Novelty/Poisoning/Evaluation | `feature/novelty-poisoning` | `src/novelty/`, `src/poisoning/`, `src/evaluation/`, `experiments/` | Novelty baseline, label-flip harness, metrics and saved results |
+Developers A, B, and C now work as one owner. The team owns all implementation
+and integration areas: `src/models/`, `src/training/`, `src/data/`,
+`src/continual_learning/`, `src/novelty/`, `src/poisoning/`, `src/mitigation/`,
+`src/evaluation/`, experiment entry points, configurations, and shared project
+documentation. Work is not assigned back to a former lettered owner.
 
-Developer B coordinates the integration after components expose the interfaces in `ARCHITECTURE.md`.
+Use focused branches for focused changes. Preserve the existing historical
+branches because they show where the model and data foundations originated.
+The current novelty task uses `feature/unified-novelty`, based on the latest
+verified `feature/model-nids` commit.
 
 ## Shared-file owner
 
-Only Developer B changes shared integration files during the Review-2 build:
+The unified team owns shared integration files, including:
 
 - `run_pipeline.py`
 - `README.md`
@@ -22,15 +25,18 @@ Only Developer B changes shared integration files during the Review-2 build:
 - `ARCHITECTURE.md`
 - `HANDOFF.md`
 
-Other developers propose changes in their pull request or issue rather than editing these files directly.
+Shared-file changes must remain scoped, documented, and compatible with the
+interfaces in `ARCHITECTURE.md`.
 
 ## Coordination rules
 
-- Create a focused branch from updated `main`; never work directly on `main`.
-- One owner changes one core module. Do not split a module among agents.
+- Create a focused branch from the verified foundation required by the task;
+  never work directly on `main`.
+- Keep each task focused and do not refactor stable core modules incidentally.
 - Before implementing, create a minimal smoke test or example that validates the owned interface.
 - When blocked, implement against the documented interface with a temporary mock, and mark it clearly.
-- Merge through a pull request after smoke-test evidence is recorded.
+- Merge through a pull request after smoke-test evidence is recorded; do not
+  merge feature work directly into `main` during an implementation task.
 
 ## Handoff format
 

@@ -1,6 +1,6 @@
 # Dataset Archive Preparation
 
-`prepare_raw_data.py` safely prepares source archives for Developer B's data
+`prepare_raw_data.py` safely prepares source archives for the team's data
 pipeline. It extracts ZIP files only: it does not read Parquet schemas, change
 labels, sample rows, normalize features, or create train/test splits.
 
@@ -35,7 +35,7 @@ python scripts/prepare_raw_data.py \
 - Rejects unsafe archive paths and ZIP symlinks.
 - Uses a `.part` file and atomic rename for each extracted file.
 - Skips existing same-size files and fails instead of overwriting a conflicting file.
-- Stops at raw extraction; Developer B owns all loading and preprocessing.
+- Stops at raw extraction; loading and preprocessing remain separate team-owned stages.
 
 ## Expected output layout
 
@@ -59,4 +59,4 @@ archives would produce this layout:
 
 Important: these names identify the currently available local archives as
 **CSE-CIC-IDS2018-style** artifacts. Do not label them CIC-IDS2021 in an
-experiment report until Developer B verifies their provenance and schema.
+experiment report until the team verifies their provenance and schema.

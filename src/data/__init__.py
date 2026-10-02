@@ -1,4 +1,4 @@
-"""Data loading and schema-validation interfaces owned by Developer B."""
+"""Team-owned data loading and schema-validation interfaces."""
 
 from .loader import DatasetInfo, inspect_parquet, iter_dataset_batches
 from .sampling import (
