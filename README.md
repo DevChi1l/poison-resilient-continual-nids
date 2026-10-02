@@ -2,8 +2,8 @@
 
 > **Review-2 status:** data/preprocessing, a tabular Transformer, confidence
 > novelty, static label flips, and classification metrics are implemented.
-> A balanced-subset Kaggle clean baseline ran; poisoning and continual runs
-> remain unverified. See
+> Balanced-subset clean and static poisoning comparisons ran on Kaggle;
+> the clean two-task replay comparison is prepared but unexecuted. See
 > [PROJECT_STATUS.md](PROJECT_STATUS.md) for the live status.
 
 A final-year B.Tech CSE research prototype that investigates secure, continual learning for a Transformer-based Network Intrusion Detection System (NIDS).
@@ -45,12 +45,12 @@ Advanced replay defenses, backdoors, embedding-based novelty detection, secondar
 | --- | --- | --- |
 | Dataset and preprocessing | Audit, bounded loading, seeded sampling/splits, and train-only preprocessing implemented | Unified A+B+C team |
 | Transformer model and training | Classifier API implemented; balanced-subset Kaggle T4 clean baseline completed | Unified A+B+C team |
-| Continual Task 1/Task 2 pipeline | Not started | Unified A+B+C team |
+| Continual Task 1/Task 2 pipeline | Task/replay preparation and forgetting metrics implemented; Kaggle run pending | Unified A+B+C team |
 | Novelty baseline | NumPy confidence threshold and synthetic tests implemented | Unified A+B+C team |
-| Label-flip poisoning and evaluation | Random/targeted static flips and known-class metrics implemented; Kaggle comparison pending | Unified A+B+C team |
+| Label-flip poisoning and evaluation | Random/targeted static flips and known-class metrics implemented; Kaggle comparison observed | Unified A+B+C team |
 | One-command integration | Not started | Unified A+B+C team |
 
-Observed balanced-subset classification results are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md). No poisoning, held-out novelty, or forgetting result has been produced. Every run must record its configuration, seed, split, and Git commit.
+Observed balanced-subset clean and static poisoning results are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md). No held-out novelty or continual forgetting result has been produced. Every run must record its configuration, seed, split, and Git commit.
 
 ## Team ownership and branches
 

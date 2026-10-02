@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (poisoning preparation)
+Last updated: 2026-10-03 (clean continual/replay preparation)
 
 ## Current state
 
@@ -19,11 +19,11 @@ There is no executable end-to-end continual pipeline. The one-epoch Kaggle T4
 smoke and a later balanced-subset clean-baseline run completed. Neither
 establishes production/full-dataset or unknown-attack performance.
 
-`notebooks/kaggle_review2_clean_baseline.ipynb` was executed on Kaggle.
-Its source pin was `68135601a3ddd95832c57bb602f210f1a0e18a43`.
-The new `notebooks/kaggle_review2_label_flip.ipynb` is prepared but has not
-been executed. Static random/targeted label flips and known-class evaluation
-are implemented; continual tasks/replay and mitigation are not.
+`notebooks/kaggle_review2_clean_baseline.ipynb` and the static label-flip
+comparison have executed on Kaggle. Reusable clean two-task construction,
+class-balanced replay selection, and forgetting metrics are implemented.
+`notebooks/kaggle_review2_continual_replay.ipynb` is prepared but has not
+been executed. Replay poisoning and mitigation are not implemented.
 
 ## What is confirmed
 
@@ -84,9 +84,9 @@ are implemented; continual tasks/replay and mitigation are not.
   remains skipped.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
-- Continual tasks, replay, mitigation, held-out novelty evaluation, and
-  one-command integration are not implemented. Static label-flip code and
-  known-class metrics are implemented, but no poisoning run has occurred.
+- Clean task/replay preparation is implemented but its Kaggle training
+  comparison has not run. Replay poisoning, mitigation, held-out novelty
+  evaluation, and one-command integration are not implemented.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -142,16 +142,16 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run the label-flip comparison notebook on Kaggle T4 with the same attached
-input. Review its per-condition manifests, attack audits, histories, metrics,
-and reload checks. Clean continual tasks and balanced replay are next after
-this review, still owned by the unified team.
+Run the clean continual/replay notebook on Kaggle T4 with the same attached
+input. Review Task 1 and both Task 2 arms' histories, metrics, forgetting,
+training-work counts, row indices, plots, and reload checks before choosing
+the next implementation task.
 
 ## Observed results
 
-The small smoke metrics above and clean balanced-subset result below were
-observed. Poisoning, held-out novelty, forgetting, and mitigation have no
-observed result yet.
+The small smoke, clean balanced-subset, and static poisoning comparison
+results were observed. Continual forgetting, replay poisoning, held-out
+novelty, and mitigation have no observed result yet.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -185,3 +185,48 @@ No Kaggle poisoning condition has been executed yet. Local focused tests:
 skipped. `compileall`, notebook JSON/code syntax and Markdown-stage checks,
 and `git diff --check` passed. The notebook has 15 cells (7 code), all with
 empty outputs. Local PyTorch/GPU and the private dataset remain unavailable.
+
+## Observed Kaggle static label-flip comparison reviewed on 2026-10-03
+
+The attached, untracked `data/poison/manifest.json`, `comparison.json`, and
+executed `poison.ipynb` were inspected. The notebook had no error outputs.
+Source SHA: `316b817b40f4008af128489ac958d3b232b56049`; input SHA-256:
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+All seven conditions report identical initial-weight hashes and successful
+checkpoint reload checks on Tesla T4. The 0% control repeated accuracy
+`0.8833333333333333`, macro-F1 `0.878016638838182`, and Benign false-positive
+rate `0.56`.
+
+At random 20%, 2,240 of 11,200 training labels changed: accuracy `0.87`,
+macro-F1 `0.8590190796024948`, Benign FPR `0.67`. At targeted 20%, 1,960
+of 9,800 eligible attack-source labels changed (17.5% of all 11,200 training
+rows): accuracy `0.8533333333333334`, macro-F1 `0.8514854740614037`, and
+true-attack-to-Benign error rate `0.06571428571428571` versus control
+`0.025238095238095237`. Random rates divide by all rows; targeted rates
+divide by eligible source rows. They are not equal budgets. Effects are mixed:
+random 10% accuracy was `0.88375`, slightly above control, and targeted 10%
+macro-F1 was `0.8817804870790201`, also above control. One seed and one
+balanced subset do not support a universal degradation claim or production
+estimate. No attached artifacts were committed.
+
+## Clean continual/replay preparation on 2026-10-03
+
+Fetched origin: local and remote unified branch matched
+`a42f464ad1081e7bab21ff11db77992df0a347b9` before edits. Published
+NumPy-only task/replay/evaluation source commits
+`ca445b425ef96ad4b0d8e214604dec8e49fb0916` and
+`b2a0afc697272a9d093780057f38c63ee19340b0`, the latter of which the
+new notebook checks out. Task 1 uses global IDs 0–4, Task 2 new IDs 5–7. Task construction
+uses the existing selected-row loader, label encoder, and preprocessor helper;
+only Task 1 training rows fit preprocessing. The replay selector takes 100
+unique Task 1 training rows per old class with seed 42, excluding validation
+and test row IDs. Forgetting keeps the same five-class F1 average and signed
+before-minus-after differences. The notebook compares Task 2 sequential
+fine-tuning against replay from independent reloads of one Task 1 checkpoint.
+It records training-work differences. No continual GPU run has occurred.
+Focused `python3 -m unittest tests.test_continual_learning -v`: 4 passed.
+Full `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 26 passed,
+1 opt-in real-data test skipped. Source `compileall`, notebook JSON/code
+syntax/Markdown/empty-output checks (23 cells, 11 code), and
+`git diff --check` passed. Local PyTorch/CUDA and private dataset execution
+were unavailable; no GPU training or continual result was generated here.

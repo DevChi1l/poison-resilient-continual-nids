@@ -451,3 +451,56 @@ condition attack/history/metrics JSON, changed-index files, and executed
 notebook. Inspect those outputs before starting clean continual tasks and
 balanced replay. Timing backdoors, feature triggers, and replay poisoning are
 planned only; mitigation is still unified-team responsibility.
+
+---
+
+## 2026-10-03: clean two-task continual/replay comparison prepared
+
+Owner: unified A+B+C. Branch: `feature/unified-novelty`. Fetched origin;
+local/remote branch matched at `a42f464ad1081e7bab21ff11db77992df0a347b9`
+before editing. Source API commits
+`ca445b425ef96ad4b0d8e214604dec8e49fb0916` and
+`b2a0afc697272a9d093780057f38c63ee19340b0` were normally pushed;
+the new notebook pins the latter exact SHA. No main merge.
+
+Reviewed untracked `data/poison/manifest.json`, `comparison.json`, and
+executed `poison.ipynb` (no error outputs). Seven condition checkpoint reloads
+passed, and all initial-weight hashes matched. Clean control accuracy
+`0.8833333333333333`, macro-F1 `0.878016638838182`, Benign FPR `0.56`.
+Random 20%: 2,240/11,200 changed, accuracy `0.87`, macro-F1
+`0.8590190796024948`, Benign FPR `0.67`. Targeted 20%: 1,960/9,800
+eligible source rows changed (17.5% of all train rows), accuracy
+`0.8533333333333334`, macro-F1 `0.8514854740614037`, attack-to-Benign
+rate `0.06571428571428571` versus clean `0.025238095238095237`. The modes
+have different denominators; random 10% accuracy and targeted 10% macro-F1
+each slightly exceeded control, so do not claim uniform degradation. This is
+one seed and one balanced subset, not production performance. All supplied
+artifacts remain local and uncommitted.
+
+Implemented `src/continual_learning/tasks.py` and `replay.py`, plus
+`src/evaluation/continual.py`. Task builder preserves global IDs 0–7 and fits
+the existing preprocessor only on Task 1 training rows. Replay chooses 100
+unique Task 1 training examples per old class, seed 42, with original row IDs
+and validation/test exclusion checks. Forgetting compares the same old-class
+test rows and five old-class F1 scores, retaining negative improvements.
+Synthetic tests cover boundaries, row disjointness, future-data exclusion,
+replay determinism, balance, copies, and forgetting.
+Focused four-test continual suite passed. Full `unittest` discovery: 26
+passed, 1 opt-in real-data model test skipped; `compileall`, notebook
+JSON/code syntax/Markdown/empty-output checks (23 cells, 11 code), and
+`git diff --check` passed.
+
+Created `notebooks/kaggle_review2_continual_replay.ipynb` with a fresh
+five-output Task 1 model, independent Task 2 checkpoint reloads, identical
+expanded-initial-state hash assertion, sequential/replay arms, clean seen-class
+validation, test-after-selection evaluation, training-work counts, curves,
+row/preprocessing records, checkpoints, and reload verification. This is
+**prepared, not executed**; no continual/forgetting outcome is known. The
+local environment has no PyTorch/CUDA or private attached Kaggle input.
+
+Next: run the notebook on Kaggle with Internet, GPU, and the same private
+Parquet input. Return the executed notebook and timestamped folder: manifest,
+summary, Task 1/arm histories and metrics, row/replay indices and copied
+replay buffer, preprocessing
+state, training curves, and checkpoint reload flags. Review observed results
+before replay poisoning, mitigation, timing backdoors, or full-data streaming.

@@ -38,11 +38,12 @@ Synthetic data may be used only for a component smoke test and must never be pre
 - The current system environment used for the novelty task has NumPy 2.4.6,
   pandas, and PyArrow; the dependency manifest pins the data path separately.
 - `torch` and `pytest` are not installed in the current system environment.
-- Data/preprocessing, the tabular Transformer source, and the NumPy novelty
-  baseline now exist. A later Kaggle T4 one-epoch smoke run produced an
-  observed model result on a 64-per-class balanced subset; see
-  `PROJECT_STATUS.md`. It is preliminary functional evidence, not a final
-  NIDS experiment or unknown-attack performance result.
+- Data/preprocessing, the tabular Transformer, NumPy novelty baseline,
+  static label flips, clean two-task construction, replay selection, and
+  known-class/forgetting evaluators exist. Kaggle T4 smoke, balanced clean,
+  and static poisoning runs have been observed; see `PROJECT_STATUS.md`.
+  None is a final NIDS or held-out unknown-attack result. The clean continual
+  comparison is prepared but not yet run.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

@@ -725,3 +725,156 @@ Likely faculty questions:
   model may make the same error; we compare aggregate rates with the control.
 - **Is this replay poisoning or unknown-attack detection?** Neither. Labels
   are corrupted once before ordinary training, and test classes are known.
+
+---
+
+## 2026-10-03: observed poisoning comparison and clean continual/replay preparation
+
+### Step 1: inspect the completed static poisoning run
+
+**Evidence inspected, not new training:** the untracked
+`data/poison/manifest.json`, `comparison.json`, and executed `poison.ipynb`.
+The notebook has no error outputs. Its source SHA was
+`316b817b40f4008af128489ac958d3b232b56049`, input checksum matched the
+reviewed combined flow collection, all seven checkpoint reloads passed, and
+all initial-weight hashes matched. The 0% control repeated accuracy
+`0.8833333333333333`, macro-F1 `0.878016638838182`, and Benign FPR `0.56`.
+Random 20% changed 2,240 of all 11,200 training rows: accuracy `0.87`,
+macro-F1 `0.8590190796024948`, Benign FPR `0.67`. Targeted 20% changed
+1,960 of 9,800 eligible attack-source rows, or 17.5% of all training rows:
+accuracy `0.8533333333333334`, macro-F1 `0.8514854740614037`, and
+attack-to-Benign rate `0.06571428571428571` versus clean
+`0.025238095238095237`. These nominal 20% settings have *different
+denominators*. The effects were mixed: random 10% accuracy (`0.88375`) and
+targeted 10% macro-F1 (`0.8817804870790201`) slightly exceeded control.
+One seed and one balanced subset cannot establish that poisoning always
+degrades metrics. No attachment was committed.
+
+### Step 2: construct global-ID tasks without future-data fitting
+
+**New code:** `src/continual_learning/tasks.py` defines
+`prepare_two_task_dataset`, `TaskPartitions`, and `ContinualTasks`.
+Inputs are `SelectedRows` from the existing
+`src.data.materialize_selected_rows` and one `StratifiedSplit` from the
+existing seed-42 splitter. The builder calls the existing
+`encode_broad_labels` once with the canonical eight-class order. Task 1
+keeps IDs 0–4 (Benign, DDoS, DoS, Botnet, Bruteforce); Task 2 keeps IDs
+5–7 (Infiltration, Webattack, Portscan). Neither task is re-encoded from
+zero. It validates that the selected raw row IDs and split partitions are
+unique, complete, disjoint, and contain every required class.
+
+**Why/how:** a class-incremental model needs stable output IDs; re-encoding
+Task 2 as 0–2 would confuse new attacks with old classes. More importantly,
+the existing `prepare_sampled_dataset` fits on *all* training rows, including
+future Task 2 rows. For this protocol the builder instead calls
+`fit_preprocessor` only on Task 1 training features, then applies its frozen
+imputation/scaling to both tasks' train, validation, and test features. If a
+future Task 2 feature is an outlier of 10,000 while Task 1 training values
+are below 100, that outlier cannot alter the fitted Task 1 mean. Synthetic
+tests verify this exactly. Each output partition has finite-model-ready
+features, global `int64` labels, and original Parquet row indices for audit.
+The bounded sample still requires a scan of the Parquet label column and
+materialization of selected flows.
+
+### Step 3: select a clean balanced memory
+
+**New code:** `src/continual_learning/replay.py` defines
+`select_balanced_replay` and `ReplaySelection`. It accepts only the prepared
+Task 1 **training** partition, global old-class IDs, `per_class=100`, seed
+42, and forbidden validation/test raw row IDs. It samples without replacement
+and returns copied features, labels, source training positions, per-class
+counts, and original row IDs. `as_fit_replay()` returns fresh copies in the
+existing model's `(X_replay, y_replay)` contract. Overlap with forbidden
+rows, insufficient class size, invalid IDs, and duplicates are rejected.
+
+**Concrete example:** five old classes times 100 gives 500 stored rows. The
+sequential arm trains on 4,200 new-class rows per epoch; the replay arm
+trains on those same 4,200 plus 500 old rows. At batch size 128, that is
+33 versus 37 optimizer steps per epoch. Because work differs, any score
+difference cannot be attributed solely to which examples were remembered.
+The notebook records actual epochs and total optimizer steps, including
+early stopping effects.
+
+### Step 4: define signed forgetting without dropping new-class errors
+
+**New code:** `src/evaluation/continual.py` defines `forgetting_metrics`.
+Inputs are the *same* old-class test truth array and predictions before/after
+Task 2, plus explicit old and all-class IDs. It uses the shared classifier
+evaluator, then averages F1 over the same five old classes at both times.
+If an old-class row is predicted as a new class after Task 2, it counts as
+an error. Outputs include before/after old accuracy and macro-F1, signed
+after-minus-before changes, and before-minus-after forgetting. Negative
+forgetting is an improvement, not truncated to zero. For example, if old
+accuracy goes from 0.5 to 0.75, accuracy forgetting is `-0.25`.
+
+### Step 5: prepare the controlled Kaggle training comparison
+
+**New notebook:** `notebooks/kaggle_review2_continual_replay.ipynb` pins
+published source `b2a0afc697272a9d093780057f38c63ee19340b0` and requires
+the previously reviewed input checksum. It samples 2,000 per broad class,
+splits once at 70/15/15 with seed 42, materializes rows once, and builds
+tasks with Task-1-only preprocessing. It selects 100 unique old training
+rows per class for replay and records their original row IDs.
+
+A fresh five-output Transformer trains on Task 1 train/validation only;
+`class_ids` must remain 0–4. No eight-class static checkpoint or future
+validation label is supplied. Its best clean-validation-loss checkpoint is
+saved. Both Task 2 arms independently reload that *same* checkpoint. Each
+load resets the model seed before `add_classes(5,6,7)`; the complete expanded
+weight hashes must match. The notebook also resets training RNG before each
+Task 2 fit. Both arms use the same Task 2 training rows, architecture,
+learning rate, batch size, maximum epochs, and patience. Sequential receives
+no replay; replay receives the 500-row `(X, y)` buffer. Both use the same
+clean validation pool of all classes seen by Task 2. This explicitly assumes
+trusted old/new validation data; it is not mitigation. The test partition
+does not control checkpoint selection.
+
+After fitting, the notebook evaluates Task 1 test before Task 2, Task 1
+test after each arm, Task 2 test after each arm, and combined test after
+each arm. It records accuracy, correctly focused old/new macro-F1, per-class
+recall/F1, Benign false-positive rate, signed forgetting, train/validation
+histories, epochs, training rows, optimizer steps, timings, curves, and
+checkpoint reload checks. The timestamped `/kaggle/working/` folder stores
+`manifest.json`, `summary.json`, Task 1 and arm metrics/history/checkpoints,
+`row_indices.npz`, `replay_indices.npz`, copied `replay_buffer.npz`,
+`preprocessing.json`, and
+`training_curves.png`. The observed values will be filled in by Kaggle; no
+continual-learning result exists yet.
+
+### Step 6: verification and boundaries
+
+`python3 -m unittest tests.test_continual_learning -v` passed four synthetic
+tests for task membership/global IDs, split disjointness, frozen Task 1 fit,
+balanced deterministic replay/copying/exclusions, and signed forgetting with
+new-class prediction errors. The full local `unittest` suite ran 27 tests:
+26 passed, one opt-in real-data model check skipped. `compileall`, notebook
+JSON/code syntax and Markdown-stage checks, and `git diff --check` passed.
+The notebook has 23 cells (11 code), all without execution outputs. Local
+PyTorch/CUDA and the private Kaggle input are unavailable, so no local model
+fit or GPU run is claimed. This is clean continual learning only; replay
+poisoning, mitigation, timing backdoors, and full-data streaming await
+execution review.
+
+### How to explain this in Review 2
+
+We teach the model five broad classes first, then introduce three new ones.
+One update learns only from the new classes; the other also rehearses 100
+saved training flows from each old class. Both start from the same Task 1
+checkpoint, and neither gets future examples when preprocessing is fitted.
+We measure old-class scores before and after, new-class scores after, and
+the extra training work replay requires. The notebook is prepared; we will
+make no claim about forgetting until its Kaggle outputs are reviewed.
+
+Likely faculty questions:
+
+- **Why not fit preprocessing on all training rows?** That would let future
+  Task 2 data influence Task 1, leaking information across the task boundary.
+- **Why retain IDs 0–7?** Class-incremental outputs must represent the same
+  class across tasks; Task 2 ID 5 must not be remapped to ID 0 (Benign).
+- **Is replay fair if it adds optimizer steps?** We hold model, Task 2 data,
+  initialization, and validation fixed but record extra rows/steps; it is a
+  practical replay comparison, not an equal-compute causal ablation.
+- **What if forgetting is negative?** It means old-class performance
+  improved. We retain its sign.
+- **Is this replay poisoning?** No. The memory contains clean Task 1 training
+  exemplars. Replay poisoning and mitigation are later phases.

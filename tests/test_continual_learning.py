@@ -25,6 +25,8 @@ def fixture():
 class ContinualTaskTests(unittest.TestCase):
     def test_membership_global_ids_disjoint_rows_and_frozen_fit(self):
         selected, split = fixture()
+        selected.features[split.validation] += 1_000_000
+        selected.features[split.test] += 1_000_000
         original_features = selected.features.copy()
         tasks = prepare_two_task_dataset(selected, split)
         self.assertEqual(tasks.task1.class_ids, TASK1_CLASS_IDS)

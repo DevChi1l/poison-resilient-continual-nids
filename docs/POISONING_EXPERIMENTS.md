@@ -47,5 +47,19 @@ confidence flags are diagnostics, not unknown-attack detection performance.
 This is **static training-label corruption**, not replay poisoning or a
 continual-learning task. Timing backdoors and replay poisoning are planned
 extensions only. A feature-trigger attack must wait until feature semantics
-and safe bounds are inspected. No poisoning outcome is claimed before Kaggle
-execution. The separate clean baseline is not modified.
+and safe bounds are inspected. The separate clean baseline is not modified.
+
+## Observed single-seed Kaggle comparison
+
+The supplied `data/poison/manifest.json`, `comparison.json`, and executed
+notebook were reviewed locally and kept out of Git. Seven initial-weight
+hashes matched and all seven checkpoint reloads reproduced predictions. On
+the balanced subset, the 0% control accuracy/macro-F1 were
+`0.8833333333333333`/`0.878016638838182` and Benign FPR `0.56`. Random
+20% changed 2,240/11,200 rows: accuracy `0.87`, macro-F1
+`0.8590190796024948`, Benign FPR `0.67`. Targeted 20% changed 1,960/9,800
+eligible rows, or 17.5% of all training rows: accuracy
+`0.8533333333333334`, macro-F1 `0.8514854740614037`, and attack-to-Benign
+rate `0.06571428571428571` versus clean `0.025238095238095237`. Random
+10% accuracy and targeted 10% macro-F1 slightly exceeded control; a
+single-seed comparison does not show that poisoning always worsens scores.
