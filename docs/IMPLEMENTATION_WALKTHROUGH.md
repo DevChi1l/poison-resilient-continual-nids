@@ -590,3 +590,138 @@ to 20 training epochs. Validation loss chooses the retained model before we
 look at the test partition. We will report the actual per-class results and
 confusion matrix after Kaggle runs it. Confidence flags remain diagnostics
 until we design a held-out unknown-class evaluation.
+
+---
+
+## 2026-10-03: observed clean baseline and static label-flip preparation
+
+### Step 1: review actual clean-baseline evidence
+
+**Inspected, not implemented here:** the attached untracked clean manifest,
+metrics, history, executed notebook, loss curves, and confusion-matrix image.
+Its source was `68135601a3ddd95832c57bb602f210f1a0e18a43`, input SHA-256
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`,
+on Tesla T4 with Python 3.12.13 and PyTorch 2.10.0+cu128. The 2,000-per-class
+balanced sample yielded 11,200 train, 2,400 validation, and 2,400 test rows,
+each with 54 retained features. Training ran 20 epochs; minimum validation
+loss selected epoch 17. The observed test accuracy was
+`0.8833333333333333` and macro-F1 `0.878016638838182`. Training took
+`13.00852884599999` seconds, and saved-checkpoint reload predictions matched.
+The notebook had no error outputs. Benign recall was `0.44`: 168/300 true
+Benign flows were called attacks, including 138 called Infiltration. Thus
+Benign false-positive rate is `168/300 = 0.56`. This specific weakness makes
+Benign-targeted corruption worth comparing, but it does not predict an attack
+outcome. This is balanced-subset evidence, not full-dataset or deployment
+performance. The clean notebook and artifacts were not edited or committed.
+
+### Step 2: implement deterministic attack mechanics
+
+**New files/functions:** `src/poisoning/label_flip.py` defines
+`apply_label_flip` and `PoisoningResult`; `src/poisoning/__init__.py` exports
+them. Inputs are one-dimensional integer training labels, a rate in `[0,1]`,
+a nonnegative seed, valid class IDs, and optionally original dataset row IDs.
+Mode `random` samples from every training row and gives each selected label a
+uniformly chosen *different* allowed class. Mode `targeted` samples only
+specified source-class rows not already in the explicit target class and
+assigns the target, initially Benign. Rows are sampled without replacement.
+The count is `floor(rate * eligible_count + 0.5)`, including half-up ties.
+
+**Why and how it connects:** static label corruption lets us quantify a
+controlled training-data integrity failure without changing network-flow
+features, model code, or clean validation/test labels. The returned copied
+`poisoned_labels` feed the existing model's `fit(X_train, y_train, X_val,
+y_val)`; the original labels and selected original row indices remain in the
+audit. Random rate divides by all training rows, targeted rate by eligible
+source rows, so the result separately reports eligible and total fractions.
+For a ten-row training array with four eligible source rows, rate 0.25 changes
+three random rows (`floor(2.5+0.5)`) but only one targeted row. Calling both
+"25% of training" would be false.
+
+**Validation and preservation:** malformed rates/seeds, noninteger labels,
+duplicate or missing classes, invalid target/source choices, and misaligned
+original row IDs raise errors. Both the input labels and original-row array
+are left untouched; even zero rate returns a separate copied label array.
+This matters because clean labels are needed for fair comparison and any
+accidental in-place mutation would contaminate later conditions.
+
+### Step 3: centralize classification and attack diagnostics
+
+**New files/functions:** `src/evaluation/classification.py` exports
+`classification_metrics`. It takes true/predicted external class IDs and
+optional explicit class mapping, names, Benign ID, source IDs, and target ID;
+it returns a JSON-serializable dictionary. Confusion counts, accuracy,
+macro-F1, per-class precision/recall/F1, Benign false-positive rate, and
+source-to-target misclassification are computed once for all conditions.
+For example, if two of four true attack-source rows are predicted Benign,
+the source-to-Benign error rate is 0.5 even for a clean model; the poisoned
+condition's *difference* from its new 0% control is the meaningful comparison.
+No per-row causal claim follows from that difference. Probability columns are
+still aligned to `model.class_ids`, not assumed to equal external IDs.
+
+### Step 4: prepare the Kaggle comparison notebook
+
+**New file:** `notebooks/kaggle_review2_label_flip.ipynb`. It clones the
+published source commit `316b817b40f4008af128489ac958d3b232b56049`,
+checks CUDA and package versions without replacing Kaggle's PyTorch, locates
+the attached private Parquet, and requires the reviewed input checksum. It
+uses existing `src.data` functions to sample once at 2,000 per broad class
+with seed 42, stratify 70/15/15 with seed 42, and fit preprocessing on train
+only. Bounded sampling still scans the large input. The class mapping is
+checked before deriving Benign target and attack-source IDs.
+
+The conditions are a newly trained 0% control plus random and targeted
+flips at 5%, 10%, and 20%. Each fresh Transformer uses 64 hidden units,
+four heads, two layers, MLP width 128, batch 128, learning rate 0.001,
+up to 20 epochs, patience five, CUDA, no mixed precision, and seed 42.
+Initial state hashes are required to match. Poisoned labels replace only
+training targets. The existing `fit` restores minimum **clean validation**
+loss weights; that assumes a trusted validation partition and is not an
+implemented defense. Test features/labels are used only after model selection.
+Every condition writes its attack counts/denominators, changed training and
+original dataset row indices, history, metrics, timings, checkpoint, and
+reload check to its own folder. A shared manifest records the Git SHA,
+environment, input checksum, split rows, preprocessing state, and config.
+The comparison reports deltas from the newly run 0% control and per-class
+recall/F1. All-known confidence flag counts remain diagnostics only.
+
+### Step 5: verification, limitations, and next step
+
+The focused synthetic command
+`python3 -m unittest tests.test_poisoning tests.test_evaluation -v` passed
+six tests, covering reproducibility, half-up counts, valid random
+replacements, source-only targeted eligibility, zero/full rates, invalid
+inputs, input preservation, noncontiguous IDs, and diagnostic metrics.
+Notebook JSON parsed and every code cell passed `ast.parse`: 15 cells (7
+code), with Markdown before each stage and no saved execution outputs.
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 23 tests:
+22 passed, 1 opt-in real-data model test skipped. `python3 -m compileall -q
+src/poisoning src/evaluation tests/test_poisoning.py tests/test_evaluation.py`
+and `git diff --check` passed. The local environment cannot run the
+CUDA/private-dataset comparison; no poisoning result has been observed.
+Kaggle output must be reviewed before
+claiming any effect. Static label corruption is not replay poisoning or a
+timing backdoor. Feature triggers need feature-semantic/bound inspection first.
+Next implementation after the Kaggle review: clean continual tasks and
+balanced replay, with mitigation still our responsibility.
+
+### How to explain this in Review 2
+
+We first trained a clean Transformer and measured an 88.33% balanced-subset
+accuracy, but also a 56% false-positive rate for Benign. Now we have prepared
+a controlled test of whether wrong training labels change that behavior.
+Every run uses the same sampled flows, splits, preprocessing, architecture,
+and starting weights; only selected training labels differ. Random flips
+send each selected label to another class, while targeted flips make selected
+attack labels Benign. We compare each to a fresh clean control, show both
+actual row counts and rates, and do not claim results until Kaggle runs it.
+
+Likely faculty questions:
+
+- **Are 10% random and 10% targeted the same number of changes?** No. Random
+  uses all training rows; targeted uses only eligible attack-source rows.
+- **Is clean validation loss a defense?** No. It assumes validation labels
+  are trusted and chooses a checkpoint under that assumption.
+- **Does an attack-to-Benign error prove poisoning caused it?** No. The clean
+  model may make the same error; we compare aggregate rates with the control.
+- **Is this replay poisoning or unknown-attack detection?** Neither. Labels
+  are corrupted once before ordinary training, and test classes are known.

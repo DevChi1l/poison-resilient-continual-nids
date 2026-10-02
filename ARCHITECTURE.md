@@ -2,12 +2,12 @@
 
 ## Current architecture
 
-The bounded data/preprocessing package, tabular Transformer classifier, and
-confidence-threshold novelty component are implemented. One small, real-data
-Transformer smoke run succeeded on Kaggle T4; the development-scale clean
-baseline is prepared but not yet run. Continual learning, poisoning,
-evaluation integration, mitigation, and the one-command pipeline remain
-incomplete as noted in `PROJECT_STATUS.md`. Developers A+B+C are one owner;
+The bounded data/preprocessing package, tabular Transformer classifier,
+confidence-threshold novelty component, static random/targeted label flips,
+and known-class classification metrics are implemented. Kaggle T4 smoke and
+balanced-subset clean-baseline runs succeeded. The poisoning comparison is
+prepared but unexecuted; continual learning, replay, mitigation, and the
+one-command pipeline remain incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
 ```text
@@ -78,23 +78,33 @@ valid. Confidence equal to the threshold is known.
 
 ## Poisoning contract
 
-`src/poisoning/` will expose:
+`src/poisoning/` exposes:
 
 ```python
 apply_label_flip(labels, rate, seed, allowed_classes=None) -> PoisoningResult
 ```
 
-The result contains changed labels, changed row indices, requested rate, achieved rate, and seed. Original labels must remain available for evaluation.
+Optional keyword fields are `mode='random'|'targeted'`, `source_class_ids`,
+`target_class_id`, `allowed_class_ids`, and `original_row_indices`. Random
+rate divides by all training rows; targeted rate divides by eligible source
+rows excluding the target. Flip count is `floor(rate * eligible_count + 0.5)`.
+The result contains copied original/poisoned labels, changed training
+positions and optional original dataset row indices, requested/achieved
+rates, eligible/total counts, and seed. Inputs are preserved.
 
 ## Evaluation contract
 
-`src/evaluation/` will expose functions that return JSON-serializable dictionaries:
+`src/evaluation/` exposes a JSON-serializable known-class metric helper:
 
 ```python
-classification_metrics(y_true, y_pred) -> dict
-continual_metrics(task1_before, task1_after, task2_score) -> dict
-novelty_metrics(is_unknown_true, is_unknown_pred) -> dict
+classification_metrics(y_true, y_pred, *, class_ids=None, class_names=None,
+                       benign_class_id=None, source_class_ids=None,
+                       target_class_id=None) -> dict
 ```
+
+It returns accuracy, macro-F1, per-class precision/recall/F1, and confusion
+counts, with optional benign false-positive and source-to-target error rates.
+Continual and held-out-unknown evaluation metrics remain planned.
 
 ## Integration contract
 

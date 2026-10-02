@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 00:02 IST
+Last updated: 2026-10-03 (poisoning preparation)
 
 ## Current state
 
@@ -15,16 +15,15 @@ novelty baseline are implemented. The active branch is
 published to `origin/feature/unified-novelty` with upstream tracking on
 2026-10-02. No merge to `main` occurred.
 
-There is no executable end-to-end pipeline. A real-data, one-epoch Kaggle T4
-smoke run completed and its attached manifest, metrics, history, and executed
-notebook were reviewed. This small run is preliminary; it does not establish
-clean-baseline quality or unknown-attack detection performance.
+There is no executable end-to-end continual pipeline. The one-epoch Kaggle T4
+smoke and a later balanced-subset clean-baseline run completed. Neither
+establishes production/full-dataset or unknown-attack performance.
 
-`notebooks/kaggle_review2_clean_baseline.ipynb` is prepared for a fresh
-2,000-per-broad-class training run, with up to 20 epochs and validation-loss
-early stopping. It has not been executed on Kaggle. Its source pin is the
-published progress-reporting API commit
-`68135601a3ddd95832c57bb602f210f1a0e18a43`.
+`notebooks/kaggle_review2_clean_baseline.ipynb` was executed on Kaggle.
+Its source pin was `68135601a3ddd95832c57bb602f210f1a0e18a43`.
+The new `notebooks/kaggle_review2_label_flip.ipynb` is prepared but has not
+been executed. Static random/targeted label flips and known-class evaluation
+are implemented; continual tasks/replay and mitigation are not.
 
 ## What is confirmed
 
@@ -85,11 +84,9 @@ published progress-reporting API commit
   remains skipped.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
-- Continual tasks, replay, label-flip poisoning, mitigation, evaluation, and
-  one-command integration are not implemented.
-- The clean baseline notebook has passed local structure and syntax checks
-  only. Its larger GPU fit, metrics, checkpoint reload, and saved manifest
-  still require a recorded Kaggle execution.
+- Continual tasks, replay, mitigation, held-out novelty evaluation, and
+  one-command integration are not implemented. Static label-flip code and
+  known-class metrics are implemented, but no poisoning run has occurred.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -145,14 +142,46 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run the clean baseline notebook on Kaggle T4 with the same attached input.
-Review its manifest, history, per-class metrics, curves, confusion matrix, and
-checkpoint reload result before choosing the next implementation prompt.
-Deterministic training-label flipping and continual learning remain later
-unified-team responsibilities.
+Run the label-flip comparison notebook on Kaggle T4 with the same attached
+input. Review its per-condition manifests, attack audits, histories, metrics,
+and reload checks. Clean continual tasks and balanced replay are next after
+this review, still owned by the unified team.
 
 ## Observed results
 
-Only the small observed Kaggle smoke metrics above exist. The new clean
-baseline, novelty performance, poisoning, forgetting, and mitigation have no
+The small smoke metrics above and clean balanced-subset result below were
+observed. Poisoning, held-out novelty, forgetting, and mitigation have no
 observed result yet.
+
+## Observed Kaggle clean baseline reviewed on 2026-10-03
+
+The attached untracked `data/manifest (1).json`, `data/metrics (1).json`,
+`data/training_history (1).json`, executed `data/baseline-lite.ipynb`, and
+training/confusion plots were inspected and preserved outside Git. The source
+was `68135601a3ddd95832c57bb602f210f1a0e18a43`; the input checksum was
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+On Tesla T4 (Python 3.12.13, PyTorch 2.10.0+cu128), the 2,000-per-class
+sample produced 11,200/2,400/2,400 train/validation/test rows, each with 54
+features. Training completed 20 epochs; the best validation-loss epoch was
+17. Test accuracy was `0.8833333333333333`, macro-F1
+`0.878016638838182`, training time `13.00852884599999` seconds, and checkpoint
+reload predictions were identical. Benign recall was `0.44`: 168/300 Benign
+test rows were predicted as attacks (56% false-positive rate), including 138
+predicted as Infiltration. This is a balanced-subset baseline, not production
+or full-dataset performance. The clean notebook remains unchanged.
+
+## Static label-flip preparation on 2026-10-03
+
+Fetched origin; local/remote unified branch were both `5e07e3ec681e000a469d23ecbf1e658697e7a815`
+before edits. The new API/test commit was normally pushed at
+`316b817b40f4008af128489ac958d3b232b56049`, and the new notebook pins
+that published SHA. `src/poisoning` supports deterministic random and targeted
+training-label flips with explicit different budget denominators. The
+NumPy-only `src/evaluation` summarizes known-class classification and attack
+diagnostics. The notebook prepares seven conditions (0% control, three random,
+three targeted) using identical splits/preprocessing and clean validation.
+No Kaggle poisoning condition has been executed yet. Local focused tests:
+6 passed. Full `unittest` discovery: 22 passed, 1 opt-in real-data model test
+skipped. `compileall`, notebook JSON/code syntax and Markdown-stage checks,
+and `git diff --check` passed. The notebook has 15 cells (7 code), all with
+empty outputs. Local PyTorch/GPU and the private dataset remain unavailable.

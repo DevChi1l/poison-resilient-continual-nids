@@ -408,8 +408,46 @@ Branch: `feature/unified-novelty`
 
 ### Next action
 
-Run the clean baseline notebook on Kaggle T4 with the same private attached
-Parquet file. Return the final cell summary and complete timestamped output
-folder, including manifest, metrics, history, both plots, preprocessing,
-indices, and checkpoint. Review those observed outputs before changing
-training settings or choosing the next implementation phase.
+The clean baseline was subsequently run and reviewed; see the latest entry
+below. Do not rerun it merely to invent or replace the observed result.
+
+---
+
+## 2026-10-03: static label-flip comparison prepared
+
+Owner: unified A+B+C. Branch: `feature/unified-novelty`. Before edits,
+origin/local HEAD matched at `5e07e3ec681e000a469d23ecbf1e658697e7a815`.
+The source API commit `316b817b40f4008af128489ac958d3b232b56049`
+was normally published; the notebook checks out that exact SHA.
+
+Reviewed the attached clean-baseline manifest, metrics, 20-epoch history,
+executed notebook, curves, and confusion plot. Observed Tesla T4 run from
+source `68135601a3ddd95832c57bb602f210f1a0e18a43`: 11,200/2,400/2,400
+rows, best epoch 17/20, accuracy `0.8833333333333333`, macro-F1
+`0.878016638838182`, training `13.00852884599999` seconds, identical reload.
+Benign recall `0.44`: 168/300 predicted attack, 138 as Infiltration. This
+balanced-subset result is not production/full-dataset performance. Attached
+files under `data/` are untracked, preserved, and excluded from commits.
+
+Implemented `src/poisoning.apply_label_flip` (random and targeted),
+`src/evaluation.classification_metrics`, focused synthetic tests, and
+`notebooks/kaggle_review2_label_flip.ipynb`. The notebook's 0% control and
+5/10/20% attack conditions are **prepared, not run**. It holds the clean
+split/preprocessing, architecture, and initial weights fixed; poisons training
+labels only; selects by clean validation loss; and saves per-condition audit
+and metrics. Targeted rate uses eligible source rows, unlike random's all-row
+rate. See `docs/POISONING_EXPERIMENTS.md` for assumptions and limits.
+
+Local focused poisoning/evaluation tests: 6 passed. Full `unittest` discovery:
+22 passed and 1 opt-in real-data model test skipped. Notebook JSON, code
+syntax, and Markdown-stage checks passed: 15 cells (7 code), empty outputs.
+`compileall` and `git diff --check` passed. Local PyTorch/GPU and private
+dataset checks remain unavailable; do
+not describe the Kaggle poisoning experiment as executed.
+
+Next: run the notebook in Kaggle with Internet, GPU, and the same private
+Parquet attachment; return the timestamped folder's manifest, comparison,
+condition attack/history/metrics JSON, changed-index files, and executed
+notebook. Inspect those outputs before starting clean continual tasks and
+balanced replay. Timing backdoors, feature triggers, and replay poisoning are
+planned only; mitigation is still unified-team responsibility.
