@@ -1,0 +1,6 @@
+# Shared direct dependencies for the implemented Review-2 data audit/loading path.
+# Model, training, novelty, and evaluation owners add their dependencies only when
+# their component interfaces are implemented and tested.
+numpy==2.5.3
+pandas==3.0.6
+pyarrow==25.0.1

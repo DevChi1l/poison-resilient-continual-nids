@@ -39,7 +39,7 @@ Advanced replay defenses, backdoors, embedding-based novelty detection, secondar
 
 | Component | Status | Owner |
 | --- | --- | --- |
-| Dataset and preprocessing | Not started; no dataset is tracked | Developer B |
+| Dataset and preprocessing | Audit, bounded loading, seeded sampling/splits, and train-only preprocessing complete | Developer B |
 | Transformer model and training | Not started | Developer A |
 | Continual Task 1/Task 2 pipeline | Not started | Developer B |
 | Novelty baseline | Not started | Developer C |
@@ -96,8 +96,8 @@ The source directories are planned ownership boundaries. They will contain imple
 
 ## Data and environment
 
-- No dataset is included or downloaded automatically.
-- The team should use a manageable, documented flow-level CSV subset for Review 2, preferably a CIC-IDS2017 subset supplied by the team.
+- A local, ignored combined flow-level Parquet collection is available at `data/cic-collection.parquet`. It has 9,167,581 rows, 57 numeric flow features, 33 detailed labels, and 8 broad labels. Its per-row source-dataset provenance is unavailable; do not call it CIC-IDS2017 or CIC-IDS2018 without external evidence. See `data/metadata/combined_flow_collection_audit.md`.
+- Review 2 will use a manageable, documented, reproducible subset of this collection.
 - Never commit raw datasets, processed data, checkpoints, secrets, or bulk generated outputs.
 - The observed environment is Python 3.14.6 with `numpy` and `pandas`; `torch` and `scikit-learn` are not installed or pinned yet.
 - Developer B will coordinate a compatible dependency manifest before integration.

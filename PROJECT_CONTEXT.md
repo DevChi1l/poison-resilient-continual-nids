@@ -11,7 +11,7 @@ The research question is whether an adaptive NIDS can retain known attack knowle
 This review prioritizes a basic, working demonstration over a final research contribution. The minimum pipeline is:
 
 ```text
-CSV flow data -> preprocessing -> small tabular Transformer -> classification
+Parquet flow data -> preprocessing -> small tabular Transformer -> classification
          -> confidence novelty baseline -> Task 1 / Task 2 update
          -> label-flip poisoning comparison -> saved metrics
 ```
@@ -26,16 +26,18 @@ CSV flow data -> preprocessing -> small tabular Transformer -> classification
 
 ## Dataset decision
 
-No dataset exists in the repository today. Do not automatically download one. For Review 2, use a documented, manageable flow-level CSV subset provided by the team (preferably CIC-IDS2017), with its source, fields, labels, split, and preprocessing recorded in `data/metadata/`.
+The Review-2 input is a local, untracked combined flow-level Parquet collection: `data/cic-collection.parquet`. It has 9,167,581 rows, 57 numeric flow features, a 33-class fine-grained `Label` target, and an 8-class broad `ClassLabel` target. The file does not contain per-row source-dataset provenance, so it must be described as a combined collection rather than attributed to CIC-IDS2017, CIC-IDS2018, or another source without external provenance evidence. Its audited schema, label counts, checksum, and data-quality findings are recorded in `data/metadata/combined_flow_collection_audit.md`.
+
+For Review 2, use a documented, reproducible subset of this collection. Do not commit raw or processed data. Synthetic data may be used only for component smoke tests and must never be presented as NIDS evidence.
 
 Synthetic data may be used only for a component smoke test and must never be presented as NIDS evidence.
 
 ## Environment observed on 2026-10-02
 
-- Python 3.14.6
-- `numpy` and `pandas` are available.
-- `torch` and `scikit-learn` are not installed.
-- No dependency manifest, dataset, model, source implementation, or tests currently exist.
+- System Python observed: 3.14.6.
+- Developer B virtual environment: Python 3.12 with `numpy`, `pandas`, and `pyarrow` for Parquet auditing.
+- `torch` and `scikit-learn` are not yet pinned in a shared dependency manifest.
+- No model, source implementation, test suite, or experiment result currently exists.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

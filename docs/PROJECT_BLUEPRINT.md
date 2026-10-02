@@ -9,7 +9,7 @@ Evaluate whether a lightweight secure-replay controller can reduce the persisten
 | Decision | Initial choice | Reason |
 | --- | --- | --- |
 | Data type | Flow-level tabular data | Feasible on student hardware and suitable for tabular Transformers. |
-| Primary dataset | CICIDS2017 | Enables direct replication-oriented experiments. |
+| Primary dataset | Combined local flow collection | The available Parquet file has compatible tabular flow features; its per-row source-dataset provenance is unavailable and must be stated as a limitation. |
 | Learning setting | Class-incremental learning (CI) | Matches the new-attack learning research question. |
 | Continual baseline | Class-balanced experience replay | Strong, understandable anti-forgetting baseline. |
 | Core attack | Label flipping | Controlled, explainable first poisoning threat. |
