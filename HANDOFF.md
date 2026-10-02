@@ -13,6 +13,7 @@ Branch: `feature/model-nids`
 - Added `ModelConfig`, `TrainingHistory`, public package exports, model usage documentation, and a torch-gated smoke test.
 - Kept the architecture interface unchanged: `fit`, `predict`, `predict_proba`, `save`, and `load`.
 - Left the untracked dataset archives in `data/` untouched because they are owned by Developer B.
+- Added safe archive preparation infrastructure: `scripts/prepare_raw_data.py`, its documentation, and a dry-run smoke test. It extracts ZIPs only and does not enter Developer B's preprocessing scope.
 
 ## Currently working
 
@@ -24,6 +25,11 @@ No active code change. The component needs a runtime smoke test after the shared
 - `src/models/tabular_transformer.py`
 - `src/models/README.md`
 - `tests/models/test_tabular_transformer.py`
+- `scripts/__init__.py`
+- `scripts/prepare_raw_data.py`
+- `scripts/README.md`
+- `tests/scripts/test_prepare_raw_data.py`
+- `.gitignore`
 - `PROJECT_STATUS.md`
 - `HANDOFF.md`
 
@@ -33,6 +39,9 @@ No active code change. The component needs a runtime smoke test after the shared
 - `git diff --check` - passed.
 - `python3 -m pytest -q tests/models/test_tabular_transformer.py` - blocked: `pytest` is not installed locally.
 - The torch runtime test is not yet runnable: `torch` is not installed locally.
+- `python3 scripts/prepare_raw_data.py --source-dir data --raw-dir /tmp/cic-ids-raw-smoke --dry-run` - passed; found two archives and reported 11 files without creating the destination.
+- `python3 -m compileall -q scripts tests/scripts` - passed.
+- `pytest`-based script tests are blocked locally because `pytest` is not installed.
 
 ## Results
 
@@ -42,6 +51,7 @@ No NIDS experiment or model-performance result exists. Training has not been run
 
 - Shared dependency manifest is absent. PyTorch and pytest need to be installed/pinned by the integration owner.
 - The source model has not yet been exercised against Developer B's prepared data contract.
+- The current ZIP member names point to CSE-CIC-IDS2018-style Parquet artifacts, while the requested primary dataset is CIC-IDS2021. Developer B must verify the archive provenance before any experiment label or preprocessing assumption is made.
 
 ## Important decisions
 
@@ -49,10 +59,11 @@ No NIDS experiment or model-performance result exists. Training has not been run
 - GPU is selected automatically when available; CUDA mixed precision is enabled only on GPU.
 - A CPU smoke configuration remains possible through `ModelConfig` without changing model code.
 - Class IDs are mapped to output columns and can be expanded for a new continual-learning task while existing head weights are preserved.
+- Dataset preparation is archive-generic and preserves member paths, so it can be reused on Colab or Lightning AI without committing source data.
 
 ## Next action
 
-Developer B should add a compatible dependency manifest and provide a prepared feature/label smoke dataset. Developer A should then run the provided model smoke test, validate the data-model interface, and hand the branch to Developer B for integration.
+Developer B should run `scripts/prepare_raw_data.py` against the verified source archive directory, consume the extracted Parquet files, and document the dataset provenance/schema. Developer B should also add a compatible dependency manifest and provide a prepared feature/label smoke dataset; Developer A can then run the model smoke test and validate the data-model interface.
 
 ## Do not
 
