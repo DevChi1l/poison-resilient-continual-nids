@@ -143,7 +143,7 @@ def fit_disk_backed(model, train: DiskBackedFlowDataset,
                                   weight_decay=model.config.weight_decay)
     criterion = torch.nn.CrossEntropyLoss()
     use_amp = model.config.mixed_precision and model.device.type == "cuda"
-    scaler = torch.cuda.amp.GradScaler(enabled=use_amp)
+    scaler = torch.amp.GradScaler("cuda", enabled=use_amp)
     seed = model.config.seed if model.config.sampler_seed is None else model.config.sampler_seed
     history = TrainingHistory([], [], [], 0, None, training_sampler=model.config.training_sampler,
                               sampler_seed=seed)
@@ -172,7 +172,7 @@ def fit_disk_backed(model, train: DiskBackedFlowDataset,
             inputs = torch.as_tensor(x, dtype=torch.float32, device=model.device)
             targets = torch.as_tensor(encoded, dtype=torch.long, device=model.device)
             optimizer.zero_grad(set_to_none=True)
-            with torch.cuda.amp.autocast(enabled=use_amp):
+            with torch.autocast(device_type=model.device.type, enabled=use_amp):
                 loss = criterion(model.network(inputs), targets)
             scaler.scale(loss).backward()
             scaler.step(optimizer)
