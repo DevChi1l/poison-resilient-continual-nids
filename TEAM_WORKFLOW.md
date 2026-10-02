@@ -15,6 +15,7 @@ Developer B coordinates the integration after components expose the interfaces i
 Only Developer B changes shared integration files during the Review-2 build:
 
 - `run_pipeline.py`
+- `README.md`
 - `configs/`
 - `requirements.txt` or `pyproject.toml`
 - `PROJECT_STATUS.md`
