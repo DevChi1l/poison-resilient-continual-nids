@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Prepare Kaggle GPU
-> smoke notebook.” Earlier sections are retained as historical
+> Latest continuation state: see the final dated section, “Review smoke and
+> prepare Kaggle clean baseline.” Earlier sections are retained as historical
 > records and do not override the current ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -345,3 +345,71 @@ Run the notebook on Kaggle with Internet, GPU, and the private attached
 `manifest.json`, `metrics.json`, and `training_history.json` for review. Do
 not treat confidence flags as unknown-class performance. Choose the next
 implementation task after inspecting this execution.
+
+---
+
+## 2026-10-03 00:03 IST: Review smoke and prepare Kaggle clean baseline
+
+Developer: Unified A+B+C team / Codex
+
+Branch: `feature/unified-novelty`
+
+### Completed
+
+- Fetched `origin` and confirmed local and remote unified branch at
+  `2b2f5ae6a0e4cbf6a93aa4fbb5318bfddd98160a` before editing. `main`
+  remained at `53f7a84`.
+- Read the user-supplied, untracked smoke manifest, metrics, history, and
+  executed notebook. The JSON values agree, and the executed code cells have
+  no error outputs. The files were preserved locally and excluded from Git.
+- Recorded the observed Kaggle smoke: source SHA `22e7976`, Tesla T4, Python
+  3.12.13, PyTorch 2.10.0+cu128, 360/80/72 rows with 54 features, one-epoch
+  train loss `2.1014001899295383`, validation loss `1.9477939367294312`,
+  validation accuracy `0.275`, test accuracy `0.25`, macro-F1
+  `0.1915376915376915`, and identical checkpoint reload predictions.
+  Threshold `0.5` flagged all 72 known-class test rows; this is not
+  unknown-attack performance.
+- Added a backward-compatible optional `verbose=True` to the existing model
+  `fit()` API, printing observed train/validation values per epoch and the
+  restored best epoch. The default remains quiet. Documented and tested the
+  progress contract; published the source commit
+  `68135601a3ddd95832c57bb602f210f1a0e18a43` with a normal push.
+- Created `notebooks/kaggle_review2_clean_baseline.ipynb`, pinned to that
+  published source commit. It trains a fresh balanced-subset model with the
+  requested 2,000/class and 64/4/2/128, batch 128, learning rate 0.001,
+  maximum 20 epochs, patience 5, CUDA, and mixed precision disabled.
+- The notebook plots train/validation curves, delays test inspection until
+  model selection completes, saves metrics and labeled confusion matrix, and
+  writes the config, environment, checksum, indices, preprocessing state,
+  history, checkpoint, and reload result to a timestamped Kaggle folder.
+- Updated the current status, architecture/context, README, and walkthrough.
+
+### Verification
+
+- Model and model-test files compiled locally.
+- Repository `unittest` discovery: 16 passed, 1 opt-in real-data model test
+  skipped. PyTorch and pytest are absent locally, so the PyTorch progress test
+  did not execute here.
+- Clean notebook JSON and code syntax: 21 cells, 10 code cells, no stored
+  outputs; passed. The larger Kaggle training has not run.
+
+### Changed files
+
+- `src/models/tabular_transformer.py`
+- `tests/models/test_tabular_transformer.py`
+- `src/models/README.md`
+- `ARCHITECTURE.md`
+- `notebooks/kaggle_review2_clean_baseline.ipynb`
+- `PROJECT_CONTEXT.md`
+- `PROJECT_STATUS.md`
+- `HANDOFF.md`
+- `README.md`
+- `docs/IMPLEMENTATION_WALKTHROUGH.md`
+
+### Next action
+
+Run the clean baseline notebook on Kaggle T4 with the same private attached
+Parquet file. Return the final cell summary and complete timestamped output
+folder, including manifest, metrics, history, both plots, preprocessing,
+indices, and checkpoint. Review those observed outputs before changing
+training settings or choosing the next implementation phase.

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-02 23:36 IST
+Last updated: 2026-10-03 00:02 IST
 
 ## Current state
 
@@ -15,14 +15,16 @@ novelty baseline are implemented. The active branch is
 published to `origin/feature/unified-novelty` with upstream tracking on
 2026-10-02. No merge to `main` occurred.
 
-There is no executable end-to-end pipeline, checkpoint, or model/novelty
-experiment result. Real-data model training has not been verified.
+There is no executable end-to-end pipeline. A real-data, one-epoch Kaggle T4
+smoke run completed and its attached manifest, metrics, history, and executed
+notebook were reviewed. This small run is preliminary; it does not establish
+clean-baseline quality or unknown-attack detection performance.
 
-`notebooks/kaggle_review2_smoke.ipynb` is prepared for the next Kaggle GPU
-smoke run. It pins the published source foundation
-`22e797660307bfed62b739d61b5e4c05bcb0a187`, samples 64 rows per broad
-class with seed 42, and records observed artifacts under `/kaggle/working`.
-It has not been executed on Kaggle.
+`notebooks/kaggle_review2_clean_baseline.ipynb` is prepared for a fresh
+2,000-per-broad-class training run, with up to 20 epochs and validation-loss
+early stopping. It has not been executed on Kaggle. Its source pin is the
+published progress-reporting API commit
+`68135601a3ddd95832c57bb602f210f1a0e18a43`.
 
 ## What is confirmed
 
@@ -77,14 +79,16 @@ It has not been executed on Kaggle.
   training and genuinely held-out classes are used as unknown evaluation data.
 - No threshold has been calibrated on a validation protocol, and no novelty
   metric has been produced.
-- PyTorch is unavailable in the current system environment, so real-data model
-  training and the opt-in model/data integration test remain unverified.
+- PyTorch is unavailable in the local system environment, so the model's new
+  optional progress path could not be run locally. The earlier Kaggle T4 smoke
+  training and checkpoint reload did succeed. The local opt-in real-data test
+  remains skipped.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
 - Continual tasks, replay, label-flip poisoning, mitigation, evaluation, and
   one-command integration are not implemented.
-- The new Kaggle notebook has passed local structure/syntax checks only. Its
-  GPU fit, attached Parquet path, metrics, checkpoint reload, and saved manifest
+- The clean baseline notebook has passed local structure and syntax checks
+  only. Its larger GPU fit, metrics, checkpoint reload, and saved manifest
   still require a recorded Kaggle execution.
 
 ## Kaggle notebook preparation verification on 2026-10-02
@@ -100,16 +104,55 @@ It has not been executed on Kaggle.
   real-data run was performed. The unrelated `data/data_vis.ipynb` remains
   untracked and untouched.
 
+## Observed Kaggle smoke execution reviewed on 2026-10-03
+
+The user supplied untracked `data/manifest.json`, `data/metrics.json`,
+`data/training_history.json`, and `data/notebook-smoke.ipynb`. The JSON files
+agree, and the executed notebook's code cells have no error outputs. These
+artifacts remain local and uncommitted.
+
+- Source revision: `22e797660307bfed62b739d61b5e4c05bcb0a187`.
+- Input: combined flow collection with unverified source provenance; attached
+  SHA-256 `666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+- Kaggle environment: Tesla T4, Python 3.12.13, PyTorch 2.10.0+cu128; CUDA
+  was available and used.
+- Seed 42 and 64 rows per broad class yielded train `(360, 54)`, validation
+  `(80, 54)`, and test `(72, 54)`.
+- One epoch: train loss `2.1014001899295383`, validation loss
+  `1.9477939367294312`, validation accuracy `0.275`.
+- Test accuracy `0.25`; macro-F1 `0.1915376915376915`. Checkpoint reload
+  predictions were identical.
+- At threshold `0.5`, all 72 known-class test rows were flagged unknown. This
+  is a confidence diagnostic, not unknown-attack detection performance.
+- The smoke manifest observed at least 2,255 source rows for every broad
+  class, supporting the planned 2,000-per-class sample on the same file.
+
+## Clean baseline preparation verification on 2026-10-03
+
+- Fetched `origin`: local and remote unified branch matched at `2b2f5ae`
+  before editing. `main` remained behind.
+- Added backward-compatible `fit(..., verbose=True)` progress reporting,
+  published as full SHA `68135601a3ddd95832c57bb602f210f1a0e18a43`.
+  Default callers remain quiet, and validation-loss best-state logic is
+  unchanged.
+- `python3 -m compileall -q src/models tests/models`: passed.
+- `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 16 passed,
+  1 opt-in real-data model test skipped. The PyTorch `pytest` model test could
+  not run locally because PyTorch and pytest are absent.
+- Clean notebook JSON and Python code syntax checks passed: 21 cells,
+  10 code cells, no saved execution outputs. No clean baseline training result
+  has been generated.
+
 ## Immediate next action
 
-Run the Kaggle smoke notebook, download its timestamped output folder, and
-review the exact environment, history, metrics, timings, and reload result.
-Choose the next implementation prompt only after that review. Deterministic
-training-label flipping remains the next planned code component; continual
-tasks, replay, mitigation, evaluation, and integration remain the unified
-team's responsibility.
+Run the clean baseline notebook on Kaggle T4 with the same attached input.
+Review its manifest, history, per-class metrics, curves, confusion matrix, and
+checkpoint reload result before choosing the next implementation prompt.
+Deterministic training-label flipping and continual learning remain later
+unified-team responsibilities.
 
 ## Observed results
 
-Only component test outcomes are reported above. No accuracy, F1, novelty,
-poisoning, forgetting, or mitigation result has been generated.
+Only the small observed Kaggle smoke metrics above exist. The new clean
+baseline, novelty performance, poisoning, forgetting, and mitigation have no
+observed result yet.

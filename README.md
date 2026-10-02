@@ -43,7 +43,7 @@ Advanced replay defenses, backdoors, embedding-based novelty detection, secondar
 | Component | Status | Owner |
 | --- | --- | --- |
 | Dataset and preprocessing | Audit, bounded loading, seeded sampling/splits, and train-only preprocessing implemented | Unified A+B+C team |
-| Transformer model and training | Classifier API implemented; real-data training not verified | Unified A+B+C team |
+| Transformer model and training | Classifier API implemented; one-epoch Kaggle T4 smoke completed; clean baseline pending | Unified A+B+C team |
 | Continual Task 1/Task 2 pipeline | Not started | Unified A+B+C team |
 | Novelty baseline | NumPy confidence threshold and synthetic tests implemented | Unified A+B+C team |
 | Label-flip poisoning and evaluation | Not started | Unified A+B+C team |
@@ -122,10 +122,12 @@ python run_pipeline.py --config configs/review2_smoke.yaml
 
 This command must not be documented as available until `run_pipeline.py`, the configuration file, dependencies, dataset instructions, and a successful observed smoke run are committed.
 
-For the next verification step, [the Kaggle GPU smoke notebook](notebooks/kaggle_review2_smoke.ipynb)
-checks a small, seeded sample with the existing data, model, and novelty APIs.
-It has not been run on Kaggle yet and is not an end-to-end continual-learning
-or poisoning experiment.
+The [Kaggle GPU smoke notebook](notebooks/kaggle_review2_smoke.ipynb) completed
+a one-epoch functional run on a 64-per-class sample. The next step is the
+[clean baseline notebook](notebooks/kaggle_review2_clean_baseline.ipynb),
+configured for 2,000 rows per broad class and validation-loss model selection.
+Its larger run has not yet been executed. Neither notebook is a continual
+learning or poisoning experiment.
 
 ## Reproducibility and research integrity
 

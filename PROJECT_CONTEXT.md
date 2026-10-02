@@ -39,7 +39,10 @@ Synthetic data may be used only for a component smoke test and must never be pre
   pandas, and PyArrow; the dependency manifest pins the data path separately.
 - `torch` and `pytest` are not installed in the current system environment.
 - Data/preprocessing, the tabular Transformer source, and the NumPy novelty
-  baseline now exist. No model training or NIDS experiment result exists.
+  baseline now exist. A later Kaggle T4 one-epoch smoke run produced an
+  observed model result on a 64-per-class balanced subset; see
+  `PROJECT_STATUS.md`. It is preliminary functional evidence, not a final
+  NIDS experiment or unknown-attack performance result.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

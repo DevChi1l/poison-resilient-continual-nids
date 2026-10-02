@@ -434,3 +434,159 @@ training epoch, and saves every input choice and observed output needed to
 reproduce or inspect the run. Its classification metrics describe only this
 small known-class smoke run. Low-confidence flag counts demonstrate the
 novelty interface; they do not measure detection of unseen attacks.
+
+---
+
+## 2026-10-03 — Review completed smoke and prepare clean baseline training
+
+This section updates the earlier planning record: the smoke notebook has now
+run on Kaggle. The larger clean baseline notebook described below has **not**
+run. Developers A+B+C remain one owner of the model, data, novelty, and
+integration work.
+
+### Step 1: inspect the supplied smoke evidence
+
+**What we reviewed:** The user attached `data/manifest.json`,
+`data/metrics.json`, `data/training_history.json`, and
+`data/notebook-smoke.ipynb`. These are untracked local execution artifacts;
+they were read for evidence and were not added to Git. Their JSON values agree,
+and the executed notebook's code cells have no error outputs.
+
+**Why it matters:** This is the first observed real-data Transformer fit in the
+project. It confirms the data-to-model wiring on Kaggle CUDA and demonstrates
+checkpoint reload, while providing a concrete reason to run a longer clean
+baseline before judging model quality.
+
+**Observed inputs and outputs:**
+
+- Source revision: `22e797660307bfed62b739d61b5e4c05bcb0a187`.
+- Combined flow input SHA-256:
+  `666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+  The Parquet file still has unverified per-row source provenance.
+- Kaggle Tesla T4, Python 3.12.13, PyTorch 2.10.0+cu128, CUDA used.
+- Seed 42, 64 samples per broad class, train `(360, 54)`, validation
+  `(80, 54)`, test `(72, 54)`.
+- One epoch: train loss `2.1014001899295383`, validation loss
+  `1.9477939367294312`, validation accuracy `0.275`.
+- Test accuracy `0.25`, macro-F1 `0.1915376915376915`; checkpoint reload
+  predictions were identical.
+- Confidence threshold `0.5` flagged all 72 **known-class** test rows.
+  This counts low-confidence predictions and is not unknown-attack detection
+  performance. Lowering the threshold to improve this count would not validate
+  the novelty method.
+
+**Why accuracy was preliminary:** The fit saw only 360 training rows total,
+one epoch, and the test had nine rows per class. The artifacts establish a
+working smoke path, not a final accuracy estimate or a comparison of training
+methods. The 2,000-per-class clean baseline increases the training subset and
+allows validation-loss model selection without consulting test labels.
+
+**Availability decision:** The smoke manifest counted at least 2,255 rows in
+every broad class, so 2,000/class is feasible for the same checksum. The new
+notebook verifies the checksum and class availability again at run time.
+
+### Step 2: add visible training progress to the existing model
+
+**What we implemented:** `TabularTransformerClassifier.fit` gained the
+optional `verbose=False` argument in `src/models/tabular_transformer.py`.
+With `verbose=True`, it prints completed-epoch train loss, validation loss,
+and validation accuracy, plus early-stop and best-state restoration messages.
+The default stays quiet for existing callers. The existing validation-loss
+comparison, patience count, best-state copy, and final restoration were not
+changed. The public interface was recorded in `ARCHITECTURE.md` and
+`src/models/README.md`; the PyTorch model test now checks progress text.
+
+**Why:** A run lasting up to 20 epochs needs visible progress in Kaggle so the
+team can tell whether training is advancing and which epoch was retained.
+This is observability, not a new training algorithm.
+
+**Concrete example:** After epoch 3, a verbose run prints the observed train
+loss, validation loss, and validation accuracy for epoch 3. If validation
+loss later fails to improve for five epochs, the model stops and restores the
+state from the lowest-loss validation epoch before `fit` returns. The example
+does not assert any expected numeric loss for the pending baseline.
+
+**Source pin:** The progress change was committed and normally pushed as
+`68135601a3ddd95832c57bb602f210f1a0e18a43`. The clean notebook checks
+out this full published SHA, so every repository API it calls is present.
+
+### Step 3: prepare the clean Kaggle notebook
+
+**What we implemented:** `notebooks/kaggle_review2_clean_baseline.ipynb` uses
+the existing sampler, splitter, preprocessor, classifier, and confidence
+baseline. It retains the completed smoke notebook unchanged. Each code stage
+has explanatory Markdown.
+
+**Inputs and connection:** The notebook imports a private attached
+`cic-collection.parquet`, requires the smoke input SHA-256, and uses 2,000
+rows per broad class with sample and split seed 42. The existing stratified
+split gives 70/15/15 partitions; the existing preprocessor fits medians,
+means, and scales only on training rows. The sampler still scans the full
+Parquet label column, and materialization scans bounded batches to find the
+selected rows. No processed dataset is committed.
+
+**Model and selection:** A newly constructed model uses `hidden_dim=64`,
+`num_heads=4`, `num_layers=2`, `mlp_dim=128`, batch size 128, learning rate
+0.001, at most 20 epochs, patience 5, CUDA required, mixed precision off,
+and seed 42. The earlier smoke checkpoint is never loaded. `fit` sees train
+and validation partitions only, prints each epoch, and returns with its
+lowest-validation-loss state restored. The notebook plots observed training
+and validation loss and validation accuracy, marking the selected epoch.
+
+**Concrete sample-size example:** Eight classes times 2,000 rows gives 16,000
+selected rows if every class passes availability checks. The expected
+70/15/15 split would then be 11,200 train, 2,400 validation, and 2,400 test
+rows. These are arithmetic expectations, not observed clean-baseline outputs;
+the notebook prints and records actual shapes when run.
+
+**Test and outputs:** Only after `fit` completes and restores the best state
+does the notebook call `predict` and `predict_proba` on test features. It
+checks shape, finite/unit-sum probabilities, and mapping from probability
+column to `model.class_ids`. It computes accuracy, macro-F1, per-class
+precision/recall/F1, and a labeled confusion matrix. Threshold 0.5 is kept
+as a known-class confidence diagnostic; flag counts are reported, not novelty
+performance. Test results are for reporting this fixed configuration and must
+not be used to tune it.
+
+The timestamped `/kaggle/working/review2_clean_baseline_*` folder will hold
+`manifest.json`, `training_history.json`, `metrics.json`,
+`training_curves.png`, `confusion_matrix.png`, `row_indices.npz`,
+`preprocessing.json`, and `transformer_best_validation.pt`. The manifest
+records actual environment versions, source SHA, input path/size/checksum,
+sampling/split seeds, configuration, model-selection epoch, timings, metrics,
+artifact names, and reload verification. The final cell reloads the saved
+checkpoint and requires identical test predictions before setting the reload
+flag to true.
+
+### Step 4: local verification and limits
+
+**Commands and observed outcomes:**
+
+```bash
+python3 -m compileall -q src/models tests/models
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+git diff --check
+```
+
+Compilation and whitespace checks passed. `unittest` discovery ran 17 tests:
+16 passed and the opt-in real-data model test was skipped. The PyTorch
+progress test is written in the existing `pytest` model suite but could not
+execute locally because PyTorch and pytest are absent. The earlier Kaggle
+smoke success must not be described as a local model-test pass for this new
+progress change.
+
+Notebook validation parsed the `.ipynb` JSON and all Python code cells,
+confirmed Markdown immediately before every code cell, and found no saved
+execution outputs: 21 cells, 10 code cells. No clean-baseline GPU training,
+metric, plot, checkpoint, or reload result has been generated yet.
+
+### How to explain this in Review 2
+
+The one-epoch T4 smoke showed that our checked-in data, model, and checkpoint
+interfaces work together, but it was too small to judge classification
+quality. The clean baseline keeps the dataset, class mapping, seeds, and
+train-only preprocessing fixed while giving a larger balanced sample and up
+to 20 training epochs. Validation loss chooses the retained model before we
+look at the test partition. We will report the actual per-class results and
+confusion matrix after Kaggle runs it. Confidence flags remain diagnostics
+until we design a held-out unknown-class evaluation.

@@ -3,11 +3,12 @@
 ## Current architecture
 
 The bounded data/preprocessing package, tabular Transformer classifier, and
-confidence-threshold novelty component are implemented. Real-data Transformer
-training, continual learning, poisoning, evaluation, mitigation, and the
-one-command pipeline are not yet verified or implemented as noted in
-`PROJECT_STATUS.md`. Developers A+B+C are one owner; interface changes still
-must be documented before integration.
+confidence-threshold novelty component are implemented. One small, real-data
+Transformer smoke run succeeded on Kaggle T4; the development-scale clean
+baseline is prepared but not yet run. Continual learning, poisoning,
+evaluation integration, mitigation, and the one-command pipeline remain
+incomplete as noted in `PROJECT_STATUS.md`. Developers A+B+C are one owner;
+interface changes still must be documented before integration.
 
 ```text
 Unified team: data + task stream
