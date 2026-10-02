@@ -67,6 +67,23 @@ class buckets rather than a per-row float64 weight vector. This path is
 prepared for future large training; the first notebook only benchmarks a
 training-only subset, without opening test metrics.
 
+For full static training, `src/training/full_run.py` adds
+`train_full_disk_backed(model, train, validation, output_dir, data_identity,
+resume=False, ...)`. It uses full bounded training and validation views and
+atomically saves an authoritative `latest.pt` after each epoch, plus a
+loadable validation-loss-selected `best.pt`. Latest records model, optimizer,
+scaler, Python/NumPy/Torch CPU/CUDA RNG states, completed epoch, history,
+best state, and patience. Resume rejects changed model configuration, class
+IDs, prepared-data identity, or runtime. An interrupted epoch restarts from
+its previous completed boundary; no mid-epoch resume is claimed. The
+existing small-array `fit()` and preparation APIs are unchanged.
+
+`src/evaluation/streaming.py` accumulates an eight-class confusion matrix
+from bounded test batches and derives accuracy, macro-F1, balanced accuracy,
+per-class precision/recall/F1/support, and Benign FPR. It retains no full
+prediction vector. The full clean notebook opens the test partition only
+after training has finished and the best checkpoint is fixed.
+
 ## Model contract
 
 `src/models/` will provide a classifier with:
