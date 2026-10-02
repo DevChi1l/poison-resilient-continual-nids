@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (large-data preparation and benchmark notebook)
+Last updated: 2026-10-03 (full clean large-data training prepared)
 
 ## Current state
 
@@ -18,13 +18,14 @@ published to `origin/feature/unified-novelty` with upstream tracking on
 The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
 replay-label mitigation, balanced replay-exposure, and held-out novelty
 comparisons have executed. None establishes production/full-dataset
-performance; the large-data preparation/benchmark notebook is unexecuted.
+performance; full-row preparation and throughput benchmarking completed,
+but the full-data training notebook is unexecuted.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
 training sampler, and novelty-evaluation APIs are implemented. New disk-backed
-full-row preparation and training interfaces are prepared but not used in a
-large-data Kaggle run yet.
+full-row preparation was exercised on Kaggle. Durable full-data training and
+streaming evaluation interfaces are prepared but not yet used for a full run.
 
 ## What is confirmed
 
@@ -86,7 +87,8 @@ large-data Kaggle run yet.
 - Clean task/replay and six replay-label/gate conditions have run, but Benign
   results remain weak and filtering did not consistently improve accuracy.
   Balanced exposure and held-out novelty evaluation ran on a bounded subset;
-  full-data training and one-command integration remain unimplemented.
+  the full-data training run is pending and one-command integration remains
+  incomplete.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -142,18 +144,18 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run `notebooks/kaggle_review2_large_data_prepare.ipynb` on Kaggle T4 with the
-reviewed Parquet attachment. Return its preparation manifests, split counts,
-two preprocessing states, benchmark record, and executed notebook before
-planning real full-data training. Preserve its disk arrays as private Kaggle
-outputs; they are not committed to Git.
+Run `notebooks/kaggle_review2_full_clean_training.ipynb` on Kaggle T4 with
+the already prepared folder (current `/kaggle/working` or attached input).
+Review its full clean training, validation-selected checkpoint, and one
+complete test evaluation before large-data continual/replay or poisoning
+comparisons. Preserve run checkpoints privately, outside Git.
 
 ## Observed results
 
 Small smoke, clean balanced-subset, static poisoning, clean continual,
 replay-label mitigation, balanced replay exposure, and held-out confidence
-novelty results were observed on bounded data. Full-row preparation and
-large-data training have not executed.
+novelty results were observed on bounded data. Full-row preparation
+completed; large-data model training has not executed.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -405,3 +407,65 @@ suite: 4 tests, 3 passed, 1 PyTorch-dependent skipped; full suite 43 tests,
 empty-output checks, and `git diff --check` passed. GPU and full-row prep
 are still unverified; next phase is real large-data training only after
 reviewing this preparation run.
+
+## Observed full-row preparation and full clean training notebook prepared
+
+Fetched origin and verified local/remote unified HEAD
+`96b8485b3d7f36fcb5d910fce6e5d4149de30a87` before editing. Inspected
+untracked `data/preparation/preparation.ipynb` and **all** supplied JSON
+artifacts: `manifest.json`, `split_manifest.json`, `features_manifest.json`,
+`preprocessing_static.json`, `preprocessing_continual.json`,
+`benchmark_results.json`, and `recommended_full_run.json`. The executed
+notebook has eight executed code cells and no error outputs. Its source was
+`5c0d519596bc6c4b99948126443635c2f7eb15f1`; Tesla T4, Python
+3.13.15, PyTorch 2.11.0+cu128; input SHA-256
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+
+The **observed preparation** assigned all 9,167,581 original rows:
+6,417,308 train, 1,375,139 validation, 1,375,134 test. It wrote one
+54-feature float32 store (`1,980,197,624` bytes), separate static and
+Task-1-only continual fit states (6,417,308 and 6,347,232 authorized
+training rows), and about `2,146,034,791` bytes of persisted artifacts.
+Both median reservoirs used 200,000 training rows, seed 42; medians remain
+approximate. The attached JSON and notebook report split coverage and
+complete stages, but the large `.npy` arrays were **not** attached locally
+for an independent byte-level audit. Row-level splitting cannot rule out
+duplicate-flow or capture-session leakage.
+
+The **observed benchmark**, not full training, ran one epoch on 100,000
+naturally distributed training rows. Batch 256 processed 391 optimizer steps
+in `4.505302165` seconds, `22,196.0695` rows/s. Its `433.6787`-second
+full-training-epoch projection includes a stated 1.5× headroom multiplier
+and excludes the full validation pass; it is **not** a measured epoch.
+Batch 128 measured `12,079.2591` rows/s. No full-data accuracy, validation,
+or test metric exists yet.
+
+Published source commit `91a26a1c13a563a7628e217f357dc27f73874784`
+adds durable `train_full_disk_backed`: atomic per-epoch `latest.pt` plus
+validation-loss-selected `best.pt`, full bounded validation, batch/epoch
+progress and timing, and exact epoch-boundary restoration of model,
+optimizer, scaler, Python/NumPy/Torch CPU/CUDA RNG, history, best state, and
+patience. Resume rejects changed config, class IDs, data identity, or runtime.
+An interrupted partial epoch repeats from the previous completed boundary;
+mid-epoch resume is not claimed. A NumPy confusion accumulator supports
+bounded full-test inference and accuracy, macro-F1, balanced accuracy,
+per-class metrics, and Benign FPR without retaining all predictions.
+
+`notebooks/kaggle_review2_full_clean_training.ipynb` pins that published
+source, validates the prepared folder read-only (working or attached input),
+then specifies a fresh eight-output hidden64/two-layer static model, natural
+shuffled training over **all** 6,417,308 train rows, full validation-loss
+selection, and a single complete test evaluation afterward. Config is
+batch256, lr0.001, seed42, mixed precision off, max20 epochs, patience5.
+It saves config/environment/data hashes, epoch checkpoints/history,
+reload checks, curves, confusion matrix and metrics separately under
+`/kaggle/working`. It has no execution outputs or full-training results.
+
+Local focused streaming metrics: 2 passed; resume/header suite: 1 passed,
+1 PyTorch-dependent resume-equivalence test skipped. Full `unittest` suite:
+47 tests, 42 passed, 5 skipped. Source compilation, notebook JSON and code
+syntax/empty-output checks, and `git diff --check` passed. Local PyTorch/GPU
+and the 2.1-GB prepared arrays are unavailable; the Kaggle notebook reruns
+the focused PyTorch check before training. Next work **after** inspecting the
+actual clean full-data result is separate continual/replay and poisoning
+comparison runs using the same prepared partitions.

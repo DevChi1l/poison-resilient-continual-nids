@@ -8,7 +8,8 @@ known-class classification metrics, clean two-task/replay preparation, and a
 simple frozen-teacher replay-label gate are implemented. Kaggle T4 smoke,
 clean-baseline, static poisoning, clean continual, replay-label mitigation,
 balanced replay exposure, and held-out confidence novelty comparisons ran
-on bounded subsets. Full-row preparation and training have not run;
+on bounded subsets. Full-row preparation and subset throughput measurement
+ran on Kaggle; full-data model training has not run;
 the one-command pipeline remains incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 

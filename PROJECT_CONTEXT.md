@@ -45,7 +45,8 @@ Synthetic data may be used only for a component smoke test and must never be pre
   continual, replay-label mitigation, balanced replay-exposure, and held-out
   novelty runs have been observed; see `PROJECT_STATUS.md`. None is a
   deployment/full-data result. The held-out confidence baseline had low
-  unknown recall; full-row preparation and training have not run.
+  unknown recall; full-row preparation ran, but full-data model training
+  has not run.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

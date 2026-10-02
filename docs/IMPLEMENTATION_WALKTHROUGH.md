@@ -1396,3 +1396,154 @@ Likely faculty questions:
   training rows; Task 1 must not learn feature statistics from future Task 2.
 - **Is the full-epoch time a result?** No. Only subset throughput is measured;
   the full-epoch figure is a 1.5×-headroom planning estimate.
+
+---
+
+## 2026-10-03: completed preparation evidence and durable full clean run
+
+### Step 1: verify the attached preparation record before scheduling training
+
+**Observed Kaggle execution, not new local training:** inspected
+`data/preparation/preparation.ipynb` and all supplied preparation JSON
+artifacts. Eight notebook code cells executed with no error outputs. Source
+revision was `5c0d519596bc6c4b99948126443635c2f7eb15f1`, input SHA-256
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`,
+and runtime Tesla T4/Python 3.13.15/PyTorch 2.11.0+cu128. The manifest and
+split record agree on **6,417,308 train, 1,375,139 validation, 1,375,134
+test** original rows, totaling 9,167,581. The stored feature schema has 54
+float32 columns and excludes both `Label` and `ClassLabel`. Static state
+used the full 6,417,308 training rows for streaming moments; continual
+state used 6,347,232 Task-1-only training rows. Each median approximation
+used a seed-42 reservoir of 200,000 authorized rows. The reported persisted
+output was about 2.146 GB. The actual large `.npy` arrays were **not**
+attached locally, so their contents have not been independently audited
+here; the next notebook validates them before use.
+
+Batch 256's **measured** one-epoch benchmark on 100,000 training rows was
+4.5053 seconds, 391 optimizer steps, and 22,196.07 rows/s; batch 128 was
+12,079.26 rows/s. The reported 433.68 seconds for one full training epoch
+is a **projection** using 1.5× headroom and 6,417,308 rows. It excludes
+the 1,375,139-row validation pass, checkpoint writes, and session startup;
+it must not be presented as measured full training time. No full-data model
+accuracy or test score exists yet. The extreme natural class distribution
+(for example, 5,030,332 Benign versus 1,579 Portscan train rows) makes
+accuracy alone misleading.
+
+### Step 2: make epoch-boundary resume durable and auditable
+
+**New code:** `src/training/full_run.py` adds
+`train_full_disk_backed(model, train, validation, output_dir,
+data_identity, resume=False, ...)`. It consumes the existing
+`DiskBackedFlowDataset` views; every training batch loads only its rows and
+uses the existing eight-output Transformer, AdamW, cross-entropy, and global
+class-ID mapping. Ordinary seeded shuffled order is used for this static
+baseline. Full validation is streamed in batches after every epoch; only
+strictly lower full validation loss updates the best state. The test view
+does not exist in this stage. Each epoch records actual training and
+validation rows, losses, validation accuracy, optimizer steps, synchronized
+train/validation seconds, and a measured-rate remaining-time estimate.
+
+`latest.pt` is the authoritative atomic epoch snapshot. It stores current
+model weights, optimizer buffers, scaler state, completed epoch, history,
+best-validation weights/loss/epoch, stale/patience counter, and Python,
+NumPy, Torch CPU, and Torch CUDA RNG states. `best.pt` is loadable through
+the existing `TabularTransformerClassifier.load()` API. A JSON history and
+training manifest are written after each completed epoch. On resume, the
+caller supplies the same model configuration, class IDs, prepared-data
+identity, and PyTorch/device runtime; mismatches stop instead of silently
+starting a new optimizer. The trainer restores optimizer/scaler and all RNG
+states, resumes at the next deterministic epoch, and repairs `best.pt` from
+authoritative latest if a crash occurred between saves. An interrupted
+partial epoch repeats from the last completed boundary. It does **not**
+promise mid-epoch continuation or bitwise-identical results across changed
+GPU/PyTorch runtimes.
+
+Concrete example: if epoch 3 finishes and `latest.pt` records 3 plus AdamW
+moments and a patience count of 2, then a session interruption during epoch
+4 leads the next session to reload that exact epoch-3 state and repeat epoch
+4's seeded order. It does not reset weights, AdamW moments, dropout RNG, or
+patience to zero. A new run with a different preprocessing hash is rejected.
+The checkpoint contents follow [PyTorch's general-resume guidance](https://docs.pytorch.org/tutorials/beginner/saving_loading_models.html),
+with explicit CPU/CUDA RNG snapshots added for this protocol.
+
+### Step 3: evaluate a selected checkpoint with bounded memory
+
+**New code:** `src/evaluation/streaming.py` provides
+`ConfusionAccumulator(class_ids)` and `evaluate_disk_backed(model, test,
+batch_size, ...)`. Each test batch produces external class IDs by mapping
+the network output column through `model.class_ids`; only an 8×8 count
+matrix survives. The final counts yield accuracy, macro-F1, balanced
+accuracy (mean of the eight recalls), each class's precision/recall/F1/
+support, and Benign FPR. For example, if two Benign rows yield one Benign
+and one attack prediction, Benign recall is 1/2 and FPR is 1/2; accumulating
+those rows in separate batches yields the same matrix. This avoids a
+1.375-million-row prediction vector in memory. The previous small-array
+evaluator and `fit()` API remain unchanged.
+
+### Step 4: prepare the Kaggle full clean notebook, not a result
+
+**New notebook:** `notebooks/kaggle_review2_full_clean_training.ipynb` pins
+published API source `91a26a1c13a563a7628e217f357dc27f73874784`.
+`PREPARED_DIR` selects the existing `/kaggle/working` folder or an attached
+private `/kaggle/input` folder. Before training, it compares preparation
+source/input identity, split counts/coverage, row IDs, array shapes/dtypes,
+54-feature order, target exclusions, and static/continual fit scopes. It
+opens prepared arrays read-only and hashes the raw store, labels, splits,
+static preprocessing state, and split manifest; these hashes become the
+resume identity. It never repeats preparation or swaps in the old balanced
+subset. A separate `/kaggle/working/full_clean_...` folder holds outputs.
+
+The initial configuration is fixed: fresh eight-class hidden64, four heads,
+two layers, MLP128, batch256, lr0.001, seed42, mixed precision off,
+`training_sampler='shuffled'`, max20 epochs, and clean full-validation-loss
+patience5. The notebook runs focused synthetic tests first. It can copy
+small prior run checkpoints from a saved Kaggle input into a new writable
+run folder using `RESUME_FROM`; the 2.1-GB prepared arrays stay read-only.
+It trains all 6,417,308 natural-distribution training rows, selects the
+best checkpoint **only from full validation loss**, verifies reload against
+the authoritative best-state snapshot, and only then evaluates the full
+1,375,134-row test split **once** with bounded inference. A matching saved
+test record is reused on notebook rerun. It saves history, manifests,
+config/environment/data hashes, best/latest checkpoints, reload audit,
+curves, confusion matrix, and test metrics. These are planned outputs, not
+observed results. Full-data continual/replay and poisoning comparisons are
+subsequent separate runs.
+
+### Step 5: verification, limitations, and Review-2 explanation
+
+Local `python3 -m unittest discover -s tests -p
+'test_streaming_evaluation.py' -v`: 2 passed. The resume suite found two
+tests: one pure metadata-compatibility test passed; one synthetic PyTorch
+CPU uninterrupted-versus-resumed weight/loss equivalence test skipped
+because PyTorch is unavailable locally. Full
+`python3 -m unittest discover -s tests -p 'test_*.py' -q`: 47 tests,
+42 passed, 5 skipped, zero failed. `python3 -m compileall -q src tests`,
+notebook JSON parse and code-cell `ast.parse`, Markdown-before-code and
+empty-output checks, and `git diff --check` passed. The Kaggle notebook
+reruns the PyTorch-dependent tests before accessing prepared data. No full
+training, full validation, or full test inference occurred locally or in
+the supplied preparation run. The static medians are still approximate,
+row-level duplicate/session leakage remains possible, and runtime changes
+can prevent exact resumption.
+
+**How to explain this in Review 2:** We have prepared all rows once and
+measured only subset throughput. The new notebook will train the clean
+eight-class model on every natural training row, check the entire
+validation set each epoch, and protect multi-session progress with complete
+epoch checkpoints. Only after validation fixes the best model will it open
+the untouched test partition. We will report all class recalls and Benign
+false alarms, not just overall accuracy, because Benign dominates this
+collection. We cannot yet quote a full-data accuracy: that run has not
+executed.
+
+Likely faculty questions:
+
+- **Does resume restore only the model?** No: it also restores AdamW,
+  scaler, RNG, history, best state, and patience; mismatched data/config
+  stop the run.
+- **Can a crash lose work?** At most the currently incomplete epoch; the
+  latest completed epoch is saved atomically.
+- **Why use validation loss rather than test metrics?** Test is reserved for
+  one final unbiased assessment after model selection.
+- **Why report balanced accuracy?** Its mean per-class recall does not let
+  the large Benign class dominate the summary the way ordinary accuracy can.

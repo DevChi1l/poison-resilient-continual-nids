@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Full-row preparation
-> and throughput notebook prepared.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Full clean static
+> large-data run prepared.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -727,3 +727,70 @@ reviewed input. Return executed notebook plus `manifest.json`,
 Retain all `.npy` files privately for the next session. Review disk/throughput
 measurements before real full-data training; do not start the full suite in
 this preparation phase.
+
+---
+
+## 2026-10-03: full clean static large-data run prepared
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Fetched origin and
+verified local/remote HEAD
+`96b8485b3d7f36fcb5d910fce6e5d4149de30a87` before edits. Preserved
+all untracked `data/` attachments, existing notebooks, prepared data, and
+small-array APIs. No main merge or generated artifact commit.
+
+Inspected untracked `data/preparation/preparation.ipynb` and every supplied
+preparation JSON. Eight code cells executed with no error outputs. Source
+`5c0d519596bc6c4b99948126443635c2f7eb15f1`, Tesla T4/Python
+3.13.15/PyTorch 2.11.0+cu128, reviewed input checksum. Observed split:
+6,417,308 train, 1,375,139 validation, 1,375,134 test (all 9,167,581).
+Static state fitted 6,417,308 training rows; continual state fitted
+6,347,232 Task-1 training rows; each used a seed-42 200,000-row median
+reservoir. The prepared output totaled about 2.146 GB. The benchmark
+measured 22,196.07 rows/s at batch256 on 100,000 naturally distributed
+training rows (391 steps, 4.5053 s). `433.68` seconds is a 1.5x-headroom
+**estimate** for a full training epoch and **excludes validation**. Large
+`.npy` arrays were not attached locally, so only the supplied run records
+were inspected; no full-data model result exists.
+
+Added `src/training/full_run.py` with atomic per-epoch latest/best
+checkpoints. Latest includes current model, optimizer, scaler, Python/NumPy/
+Torch CPU/CUDA RNG, completed epoch, history, best weights/loss, and patience;
+resume verifies config, class IDs, prepared-data identity, and runtime.
+Interrupted epochs replay from the previous boundary, not mid-epoch. It
+prints batch progress and measured train/validation/remaining timings.
+`src/evaluation/streaming.py` accumulates bounded test confusion counts and
+reports accuracy, macro-F1, balanced accuracy, per-class P/R/F1/support,
+and Benign FPR. The original small-array model API remains unchanged.
+Published API source: `91a26a1c13a563a7628e217f357dc27f73874784`.
+
+New `notebooks/kaggle_review2_full_clean_training.ipynb` pins that source.
+It explicitly selects a read-only prepared folder from current working or
+attached Kaggle input, checks manifests/shapes/dtypes/split coverage/
+preprocessing scope and hashes its raw features, labels, splits and state.
+It creates a separate writable run folder and supports resume from a prior
+working folder or attached run output. Configuration is a fresh eight-class
+hidden64/four-head/two-layer/MLP128 model, batch256, lr.001, seed42,
+mixed precision off, ordinary shuffled full training, max20 epochs,
+patience5. Full validation loss chooses best; only then does one bounded
+complete test inference occur. Artifacts include latest/best, per-epoch
+history/manifest, config/environment/data hashes, reload audit, plots,
+test metrics and final manifest. **Notebook unexecuted; no full-data
+accuracy or test metric is claimed.**
+
+Local focused streaming metrics: 2 passed. Resume/header suite: 1 passed,
+1 PyTorch-dependent equivalence test skipped. Full `unittest`: 47 tests,
+42 passed, 5 skipped. Source compilation, notebook JSON/code syntax,
+Markdown and empty-output checks, and `git diff --check` passed. PyTorch/GPU
+and the actual prepared arrays were unavailable locally; the Kaggle notebook
+runs focused PyTorch tests before training.
+
+Next: import the full clean notebook into Kaggle with Internet/T4, set
+`PREPARED_DIR` to the existing `/kaggle/working/review2_large_prepare_...`
+or attached private input folder, and run. Save the run folder after every
+completed epoch. If interrupted, attach that run folder and set
+`RESUME_FROM`; keep the exact prepared input attached. Return executed
+notebook plus `final_manifest.json`, `training_manifest.json`, `history.json`,
+`run_config.json`, `run_environment.json`, `reload_verification.json`,
+`test_metrics.json`, `training_curves.png`, `confusion_matrix.png`, and
+checkpoint metadata/files privately. Inspect clean full-data results before
+separate continual/replay and poisoning runs.
