@@ -4,10 +4,10 @@
 
 The bounded data/preprocessing package, tabular Transformer classifier,
 confidence-threshold novelty component, static random/targeted label flips,
-and known-class classification metrics are implemented. Kaggle T4 smoke and
-balanced-subset clean-baseline runs succeeded. The poisoning comparison is
-prepared but unexecuted; continual learning, replay, mitigation, and the
-one-command pipeline remain incomplete. Developers A+B+C are one owner;
+known-class classification metrics, and clean two-task/replay preparation are
+implemented. Kaggle T4 smoke, clean-baseline, and static poisoning comparisons
+ran. The continual notebook is prepared but unexecuted; replay poisoning,
+mitigation, and the one-command pipeline remain incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
 ```text
@@ -104,7 +104,30 @@ classification_metrics(y_true, y_pred, *, class_ids=None, class_names=None,
 
 It returns accuracy, macro-F1, per-class precision/recall/F1, and confusion
 counts, with optional benign false-positive and source-to-target error rates.
-Continual and held-out-unknown evaluation metrics remain planned.
+`forgetting_metrics(old_truth, before_predictions, after_predictions, *,
+old_class_ids, all_class_ids)` computes old-class before-minus-after accuracy
+and macro-F1 on the identical old-class test rows. It averages the same old
+classes at both times; predictions into new classes remain errors. Negative
+forgetting indicates improvement. Held-out-unknown metrics remain planned.
+
+## Clean continual-learning contract
+
+`src/continual_learning.prepare_two_task_dataset(selected, split)` accepts
+`SelectedRows` from `materialize_selected_rows` and the existing stratified
+split. It preserves global class IDs 0–7: Task 1 is 0–4 (Benign, DDoS, DoS,
+Botnet, Bruteforce), Task 2 is 5–7 (Infiltration, Webattack, Portscan).
+It fits the existing preprocessor **only on Task 1 training rows**, then
+freezes that state for both tasks and all partitions. Validation/test rows
+and Task 2 training rows never fit preprocessing. Raw row indices remain in
+every partition; split and class membership are validated.
+
+`select_balanced_replay(task1_train, class_ids=(0,1,2,3,4), per_class=100,
+seed=42, forbidden_row_indices=...)` samples unique Task 1 training rows
+without replacement, returns copied features/labels and raw row IDs, and
+exposes `as_fit_replay()` for the model's existing `(X_replay, y_replay)`
+argument. The caller provides validation/test IDs as exclusions. Task 2
+sequential and replay arms begin from independent reloads of the same Task 1
+checkpoint and expand to 0–7 with the same seed before training.
 
 ## Integration contract
 
