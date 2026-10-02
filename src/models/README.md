@@ -1,0 +1,49 @@
+# Model / NIDS Component
+
+Owner: **Developer A** (`feature/model-nids`)
+
+`tabular_transformer.py` implements a numeric feature-token Transformer. Each
+preprocessed flow feature becomes a learned token, a Transformer encoder models
+feature interactions, and the CLS token is classified into attack-class IDs.
+
+## Public API
+
+```python
+from src.models import ModelConfig, TabularTransformerClassifier
+
+config = ModelConfig(
+    num_features=number_of_preprocessed_features,
+    num_classes=number_of_known_classes,
+    device="auto",           # CUDA when available, CPU otherwise
+    mixed_precision=True,    # active only on CUDA
+)
+model = TabularTransformerClassifier(config, class_ids=known_class_ids)
+history = model.fit(X_train, y_train, X_val, y_val, replay=None)
+predictions = model.predict(X_test)
+probabilities = model.predict_proba(X_test)
+model.save("checkpoints/review2_model.pt")
+```
+
+Inputs must follow the contract in `ARCHITECTURE.md`: finite `float32` features
+with shape `(n_samples, n_features)` and one-dimensional integer class IDs.
+`predict_proba` columns always align with `model.class_ids`.
+
+## Continual-learning support
+
+Call `add_classes(new_class_ids)` before a task containing unseen labels, or
+let `fit` discover those labels. The classifier expands its output layer while
+retaining existing output weights. Replay data, when available from Developer B,
+is passed as `replay=(X_replay, y_replay)`.
+
+## Compute modes
+
+- **Local smoke test:** set a small model (`hidden_dim=32`, `num_layers=1`), a
+  small batch, `device="cpu"`, and `mixed_precision=False`.
+- **Colab/Lightning experiment:** keep `device="auto"`, set an appropriate GPU
+  batch size, and use the default CUDA mixed precision. Epochs, batch size,
+  architecture size, workers, learning rate, dropout, seed, and early stopping
+  are all configurable in `ModelConfig`.
+
+PyTorch is required but is not pinned in this branch because the shared
+dependency manifest is owned by Developer B. This module has a torch-gated
+smoke test that will run once PyTorch is available.

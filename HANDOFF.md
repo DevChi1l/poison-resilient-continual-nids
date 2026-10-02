@@ -2,62 +2,60 @@
 
 Date/time: 2026-10-02
 
-Developer: Repository initialization agent
+Developer: A - Model/NIDS
 
-Branch: `main`
+Branch: `feature/model-nids`
 
 ## Completed
 
-- Inspected the remote repository, current branch, commits, documentation, dependency files, source files, tests, and local runtime.
-- Confirmed that the repository is a blueprint only; no implementation was overwritten.
-- Added the persistent context system and three-developer Review-2 interface contract.
-- Reworked `README.md` into the living Review-2 project front door, including status, ownership, interfaces, run-state rules, and documentation-update protocol.
+- Followed the persistent-context startup protocol and inspected the repository, branch history, interfaces, and environment.
+- Implemented `src/models/tabular_transformer.py`: numeric feature-token Transformer, classifier training loop, inference, CUDA auto-selection, CUDA mixed precision, early stopping, checkpoint save/load, and dynamic output-head expansion for later class-incremental tasks.
+- Added `ModelConfig`, `TrainingHistory`, public package exports, model usage documentation, and a torch-gated smoke test.
+- Kept the architecture interface unchanged: `fit`, `predict`, `predict_proba`, `save`, and `load`.
+- Left the untracked dataset archives in `data/` untouched because they are owned by Developer B.
 
 ## Currently working
 
-No active implementation task.
+No active code change. The component needs a runtime smoke test after the shared PyTorch environment is installed.
 
-## Files changed in this handoff
+## Files changed
 
-- `AGENTS.md`
-- `PROJECT_CONTEXT.md`
-- `TEAM_WORKFLOW.md`
-- `ARCHITECTURE.md`
+- `src/models/__init__.py`
+- `src/models/tabular_transformer.py`
+- `src/models/README.md`
+- `tests/models/test_tabular_transformer.py`
 - `PROJECT_STATUS.md`
 - `HANDOFF.md`
-- `REVIEW2_CHECKLIST.md`
-- `README.md`
-- `docs/TEAM_WORKFLOW.md`
-- `README.md`
-- `TEAM_WORKFLOW.md`
 
 ## Tests run
 
-- Repository inspection and Git status/log checks.
-- Python runtime package availability check.
-- Markdown/trailing-whitespace validation passed with `git diff --check` before commit.
+- `python3 -m compileall -q src/models tests/models` - passed.
+- `git diff --check` - passed.
+- `python3 -m pytest -q tests/models/test_tabular_transformer.py` - blocked: `pytest` is not installed locally.
+- The torch runtime test is not yet runnable: `torch` is not installed locally.
 
 ## Results
 
-No experiment results. The repository has no dataset or implementation.
+No NIDS experiment or model-performance result exists. Training has not been run.
 
 ## Known problems
 
-- Dataset and framework dependencies are absent.
-- Three developers must be assigned to the documented branches before parallel coding starts.
+- Shared dependency manifest is absent. PyTorch and pytest need to be installed/pinned by the integration owner.
+- The source model has not yet been exercised against Developer B's prepared data contract.
 
 ## Important decisions
 
-- Review 2 uses a small tabular Transformer, confidence-threshold novelty baseline, Task 1 to Task 2 continual-learning demonstration, and configurable label-flip poisoning.
-- The architecture contract in `ARCHITECTURE.md` is the integration boundary.
-- Advanced replay protection and mitigation are explicitly deferred until the basic pipeline is stable.
+- The model is a genuine feature-token Transformer rather than an MLP placeholder.
+- GPU is selected automatically when available; CUDA mixed precision is enabled only on GPU.
+- A CPU smoke configuration remains possible through `ModelConfig` without changing model code.
+- Class IDs are mapped to output columns and can be expanded for a new continual-learning task while existing head weights are preserved.
 
 ## Next action
 
-Create the three feature branches and begin the assigned component implementations against `ARCHITECTURE.md`.
+Developer B should add a compatible dependency manifest and provide a prepared feature/label smoke dataset. Developer A should then run the provided model smoke test, validate the data-model interface, and hand the branch to Developer B for integration.
 
 ## Do not
 
-- Do not work directly on `main` for components.
-- Do not download a large dataset without recording the decision.
-- Do not claim model performance until a recorded run produces it.
+- Do not merge this branch before PyTorch-based runtime validation.
+- Do not alter `src/models/` from another ownership area without documenting an interface change.
+- Do not claim any accuracy, F1, or continual-learning result from this branch.
