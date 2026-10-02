@@ -1187,3 +1187,52 @@ Likely faculty questions:
   class split, one seed, and one balanced subset of a collection with
   unverified source provenance. A low confidence score need not reliably
   distinguish every new attack.
+
+---
+
+## 2026-10-03: repair Kaggle notebook test discovery
+
+**Observed failure:** the first Kaggle attempt stopped in the environment/
+synthetic-test cell of `kaggle_review2_replay_balance_novelty.ipynb` with
+`ModuleNotFoundError` for `tests.test_training_sampling` and
+`tests.test_novelty_evaluation`. This happened before data scanning,
+Task 1 training, replay comparison, or held-out novelty evaluation. Both
+test files are in pinned source
+`4e46f7f8ded77612210237e8dc9f6ea8e83730da`, but `tests/` lacks
+`__init__.py`, so a dotted package import was the wrong invocation. No
+experiment metric can be taken from this stopped run.
+
+**Change and reason:** only the notebook's stage-2 code cell changed. It
+now runs two separate subprocesses equivalent to
+`python -m unittest discover -s tests -p test_training_sampling.py -v`
+and
+`python -m unittest discover -s tests -p test_novelty_evaluation.py -v`,
+each from the cloned `REPO_DIR` with `check=True`. The code displays each
+suite's output and parses its `Ran N tests` summary, raising an error if a
+suite discovers zero tests. This keeps a false green test stage from letting
+the NIDS experiment proceed. The input is the two exact test filenames;
+the output is a visible, nonzero passing test count or an immediate stop.
+No source code or model/data/novelty settings changed; the pinned SHA stays
+the same. For a concrete example, the local sampler discovery reports
+`Ran 4 tests`, so it passes the count guard even though two torch-dependent
+tests skip locally; an empty pattern reporting `Ran 0 tests` would stop.
+
+**Verification:** fetched origin and confirmed local/remote branch HEAD
+`0315bc041acec0a69629fda0764d43836dda576c` before editing. The two
+exact-pattern local discovery commands found 4 sampler tests (2 pass, 2
+PyTorch-unavailable skips) and 3 novelty tests (3 pass), with zero failures.
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 39 tests:
+36 passed, 3 skipped, 0 failed. JSON parsing and `ast.parse` passed for
+all 11 notebook code cells; each still has Markdown immediately before it,
+and all execution counts/outputs remain empty. The notebook's source SHA
+assertion remains unchanged; `git diff --check` passed. These local checks
+verify invocation and syntax, **not** Kaggle T4 execution. The corrected
+notebook must be rerun with Internet, GPU, and the attached reviewed Parquet.
+Then inspect the produced manifest, exposure, novelty, and reload checks
+before the following streaming/throughput phase.
+
+**Review-2 explanation:** the run stopped because our notebook asked Python
+to import test files as a package that the repository does not define. We
+changed the notebook to discover those files by exact filename, require
+nonzero test counts, and still halt on any failure. We have no new model or
+novelty result from the stopped attempt.

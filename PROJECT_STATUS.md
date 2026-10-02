@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (clean replay exposure and held-out novelty preparation)
+Last updated: 2026-10-03 (Kaggle test-discovery correction)
 
 ## Current state
 
@@ -142,7 +142,8 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run `notebooks/kaggle_review2_replay_balance_novelty.ipynb` on Kaggle T4 with
+Rerun the corrected `notebooks/kaggle_review2_replay_balance_novelty.ipynb`
+in a fresh Kaggle T4 session with
 the same attached input. Review the clean exposure comparison, validation-only
 strategy choice, actual held-out novelty metrics, work counts, and reload
 checks before preparing large-data streaming and throughput benchmarks.
@@ -322,3 +323,27 @@ passed. Kaggle will run the torch-dependent synthetic checks; local PyTorch,
 CUDA, and private input remain unavailable. The untracked attachments remain
 outside Git. Streaming preparation/throughput benchmarking follows review of
 the new Kaggle run.
+
+## Kaggle replay-balance/novelty notebook stopped at test discovery
+
+The first attempted Kaggle execution stopped in the notebook's environment/
+synthetic-test cell with `ModuleNotFoundError` for
+`tests.test_training_sampling` and `tests.test_novelty_evaluation`. Both test
+files exist at the pinned source SHA, but `tests/` is not an importable
+package (`__init__.py` is absent). No Task 1 training, replay-balance
+comparison, or held-out novelty result is claimed from this stopped run.
+
+Verified local/remote unified HEAD was
+`0315bc041acec0a69629fda0764d43836dda576c` after fetching origin.
+Changed only the notebook test invocation: two separate
+`python -m unittest discover -s tests -p <exact filename> -v` subprocesses,
+each with the repository as working directory, `check=True`, and an explicit
+nonzero discovered-test count check. The pinned source SHA and all experiment
+settings remain unchanged. Local exact-pattern discovery found 4 sampler
+tests (2 passed, 2 PyTorch-dependent skipped) and 3 novelty-evaluation tests
+(3 passed). Full local suite: 39 tests, 36 passed, 3 skipped (the two sampler
+checks plus opt-in real-data integration). Notebook JSON, all 11 code-cell
+syntax checks, Markdown staging, empty outputs, pinned SHA, and
+`git diff --check` passed. Kaggle GPU/data execution remains unverified after
+the correction; rerun the notebook from a fresh session before interpreting
+any experiment result.

@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Clean replay exposure
-> and held-out novelty prepared.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Kaggle test discovery
+> corrected.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -627,3 +627,42 @@ both arms' `history.json`, `validation_metrics.json`, `test_metrics.json`,
 checkpoint reload flags, `row_indices.npz`, `replay_buffer.npz`, and plot.
 Review actual results, then prepare streaming/throughput benchmarking. Do not
 claim novelty performance or balanced-sampling improvement before the run.
+
+---
+
+## 2026-10-03: Kaggle test discovery corrected
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Fetched origin and
+verified local/remote HEAD
+`0315bc041acec0a69629fda0764d43836dda576c` before editing. Preserved
+all untracked `data/` artifacts and existing notebooks.
+
+User-reported Kaggle failure: the first attempted execution of
+`kaggle_review2_replay_balance_novelty.ipynb` stopped at its synthetic-test
+cell with `ModuleNotFoundError` for dotted `tests.test_training_sampling`
+and `tests.test_novelty_evaluation`. The files are present at the pinned
+source revision, but `tests/` has no `__init__.py`; the import form is not
+portable to that Kaggle environment. This is a notebook bootstrap failure,
+not evidence about balanced replay or unknown-attack detection.
+
+The notebook now runs two separate exact-pattern `unittest discover`
+subprocesses from `REPO_DIR`, with `check=True`, captured/printed output,
+and an explicit nonzero discovered-test count for each. It still pins source
+`4e46f7f8ded77612210237e8dc9f6ea8e83730da`; data, model, sampler,
+threshold, seeds, and strategy-selection settings are unchanged. No source
+API edit was needed.
+
+Local verification: sampler pattern discovered 4 tests, 2 passed and 2
+PyTorch-dependent skipped; novelty pattern discovered 3 tests, all passed.
+Full `unittest` discovery ran 39 tests, 36 passed and 3 skipped. Notebook
+JSON, Python syntax in all 11 code cells, preceding Markdown, empty outputs,
+and unchanged pinned SHA passed; `git diff --check` passed. Local PyTorch,
+CUDA, private Parquet data, and a corrected Kaggle rerun were unavailable.
+
+Next: import the updated notebook into a **fresh** Kaggle Internet/GPU
+session, attach the reviewed Parquet file, and run top to bottom. Confirm both
+synthetic suites report nonzero tests and pass before interpreting Task 1,
+balanced-replay, or held-out novelty outputs. Return executed notebook and
+timestamped output folder. Only after that review proceed to streaming
+preparation/throughput benchmarking. Do not claim this failed run produced
+experiment metrics.
