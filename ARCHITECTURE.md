@@ -38,6 +38,34 @@ class_names: dict[int, str]   # ID-to-label mapping
 
 The data owner is responsible for fitting preprocessing on the training partition only and applying the same transform to validation/test partitions. Task definitions must record included classes, row counts, and seed.
 
+### Full-row disk preparation interface
+
+The optional large-data path in `src/data/large_data.py` does not replace the
+small-array contract. `prepare_full_partitions(path, output_dir, seed=42)`
+persists global `uint8` IDs 0–7, one split code per original row, explicit
+original row IDs and split-index files, then verifies total coverage and
+per-class counts. `prepare_raw_feature_store()` scans bounded Parquet batches
+and persists one `(rows, 54)` `float32` row-aligned feature memmap; neither
+`Label` nor `ClassLabel` is a feature. Negative/non-finite values are missing.
+Completed stages have manifest markers for restart; partial stages are
+rewritten. Input checksum verification is required by the Kaggle notebook.
+
+`fit_disk_preprocessor(root, scope='static'|'continual', ...)` takes seeded,
+bounded training-only median samples and streams imputed population moments.
+Static scope is all training classes; continual scope is only Task 1 training
+IDs 0–4. Validation/test never fit, and both states are separately persisted.
+The medians are approximate from a recorded reservoir, unlike the exact
+small-array median; the 54-feature order and invalid-value rules are retained.
+
+`src/training/disk_backed.py` exposes `DiskBackedFlowDataset` and
+`fit_disk_backed(model, train, validation=None, ...)`. A partition/class view
+stores integer positions, reads and transforms only each batch, and keeps
+the existing model/checkpoint/class-ID format and validation-loss early
+stopping. Seeded shuffled order is the default. Optional balanced draws use
+class buckets rather than a per-row float64 weight vector. This path is
+prepared for future large training; the first notebook only benchmarks a
+training-only subset, without opening test metrics.
+
 ## Model contract
 
 `src/models/` will provide a classifier with:
