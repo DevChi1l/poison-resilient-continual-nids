@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Unified ownership
-> and confidence novelty baseline.” Earlier sections are retained as historical
+> Latest continuation state: see the final dated section, “Publish unified
+> feature branch.” Earlier sections are retained as historical
 > records and do not override the current ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -253,3 +253,41 @@ Implement deterministic training-label flipping with a configurable rate and
 seed. Preserve original labels and report changed indices and achieved rate.
 Do not poison validation/test labels. Stop there before beginning the later
 continual-learning, replay, mitigation, and evaluation tasks.
+
+---
+
+## 2026-10-02 23:29 IST: Publish unified feature branch
+
+Developer: Unified A+B+C team / Codex
+
+Branch: `feature/unified-novelty`
+
+### Completed and observed
+
+- Re-read the current project instructions and fetched `origin` before pushing.
+- Confirmed local `HEAD` was `8070927`, based on model/data commit `93492d6`.
+  No remote `feature/unified-novelty` branch existed before the push.
+- Reviewed the push range against `origin/main`. It contained source code,
+  tests, and documentation, with no dataset, archive, checkpoint, secret, or
+  generated result file.
+- Ran the focused novelty tests: 9 passed. Repository `unittest` discovery:
+  16 passed and 1 opt-in real-data model test skipped. Compilation and
+  `git diff --check HEAD^ HEAD` passed.
+- Published with `git push -u origin feature/unified-novelty`. The first remote
+  verification returned
+  `8070927eddac8bef6e940cd7d2f8c5eda3e9dee6`, matching local `HEAD`.
+- Left the unrelated untracked `data/data_vis.ipynb` untouched. No merge to
+  `main` or history rewrite was performed.
+
+### Files changed for this handoff
+
+- `PROJECT_STATUS.md`
+- `HANDOFF.md`
+
+### Remaining work
+
+Real-data Transformer training is still unverified; the current system lacks
+PyTorch. Novelty performance needs held-out unknown-class evaluation. The next
+implementation task remains deterministic, configurable training-label
+flipping, followed by continual tasks, replay, mitigation, evaluation, and
+integration under the unified team's ownership.

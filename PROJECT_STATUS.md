@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-02
+Last updated: 2026-10-02 23:29 IST
 
 ## Current state
 
@@ -11,7 +11,9 @@ The bounded Parquet data path, deterministic sampling/splitting, train-only
 preprocessing, tabular Transformer classifier source, and NumPy-only confidence
 novelty baseline are implemented. The active branch is
 `feature/unified-novelty`, created from verified commit `93492d6` on
-`origin/feature/model-nids`. No merge to `main` and no push occurred.
+`origin/feature/model-nids`. The completed feature commit `8070927` was
+published to `origin/feature/unified-novelty` with upstream tracking on
+2026-10-02. No merge to `main` occurred.
 
 There is no executable end-to-end pipeline, checkpoint, or model/novelty
 experiment result. Real-data model training has not been verified.
@@ -45,6 +47,22 @@ experiment result. Real-data model training has not been verified.
 - `python3 -m pytest -q`: did not start because `pytest` is not installed.
 - Current system checks found NumPy, pandas, and PyArrow available; PyTorch and
   pytest are not installed. No packages were installed for this task.
+
+## Publication verification on 2026-10-02
+
+- `git fetch --prune origin` confirmed the remote branches before publication.
+- The local branch pointed to `8070927`; it had no tracked changes. The only
+  untracked path was `data/data_vis.ipynb`, which was preserved.
+- The commits introduced relative to `origin/main` contained code, tests, and
+  documentation, with no dataset, archive, checkpoint, secret, or generated
+  result file.
+- Fresh checks: focused novelty suite 9 passed; repository `unittest` suite
+  16 passed and 1 opt-in real-data model test skipped; compilation and
+  `git diff --check HEAD^ HEAD` passed.
+- `git push -u origin feature/unified-novelty` succeeded. A subsequent
+  `git ls-remote --heads origin feature/unified-novelty` returned the same
+  full SHA as local `HEAD` at that point:
+  `8070927eddac8bef6e940cd7d2f8c5eda3e9dee6`.
 
 ## Known blockers and limitations
 
