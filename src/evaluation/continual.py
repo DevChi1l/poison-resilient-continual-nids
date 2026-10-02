@@ -43,8 +43,10 @@ def forgetting_metrics(
         "old_test_rows": int(truth.size),
         "accuracy_before": before["accuracy"],
         "accuracy_after": after["accuracy"],
+        "accuracy_change": after["accuracy"] - before["accuracy"],
         "accuracy_forgetting": before["accuracy"] - after["accuracy"],
         "macro_f1_before": before_f1,
         "macro_f1_after": after_f1,
+        "macro_f1_change": after_f1 - before_f1,
         "macro_f1_forgetting": before_f1 - after_f1,
     }

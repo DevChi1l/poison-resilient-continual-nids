@@ -90,12 +90,14 @@ class ForgettingTests(unittest.TestCase):
         result = forgetting_metrics(truth, before, after,
                                     old_class_ids=[0, 1], all_class_ids=[0, 1, 5])
         self.assertEqual(result["accuracy_forgetting"], 0.5)
+        self.assertEqual(result["accuracy_change"], -0.5)
         self.assertAlmostEqual(result["macro_f1_before"], 1.0)
         self.assertAlmostEqual(result["macro_f1_after"], 2 / 3)
         self.assertAlmostEqual(result["macro_f1_forgetting"], 1 / 3)
         improved = forgetting_metrics(truth, after, before,
                                       old_class_ids=[0, 1], all_class_ids=[0, 1, 5])
         self.assertEqual(improved["accuracy_forgetting"], -0.5)
+        self.assertEqual(improved["accuracy_change"], 0.5)
 
 
 if __name__ == "__main__":
