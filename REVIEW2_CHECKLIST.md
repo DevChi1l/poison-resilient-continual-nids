@@ -6,10 +6,10 @@
 - [x] Preprocessing fits on training data only and emits the canonical data contract.
 - [ ] Small Transformer can train and predict in a CPU smoke run.
 - [x] Classification metrics are generated and saved in recorded Kaggle runs.
-- [x] Confidence-threshold novelty baseline marks low-confidence samples as unknown (synthetic component verification only).
+- [x] Confidence-threshold novelty baseline evaluated on held-out Task 2 classes; recall was low.
 - [x] Task 1 then Task 2 clean incremental experiment ran on Kaggle.
 - [x] Task 1 scores before/after Task 2 and signed forgetting were recorded.
-- [x] Static label flipping ran at clean (`0%`) and poisoned rates; replay-label poisoning is prepared, not run.
+- [x] Static and replay-label poisoning comparisons ran on bounded Kaggle subsets.
 - [x] Clean/static-poisoning outputs were saved separately.
 - [ ] One command executes the configured demo pipeline.
 - [ ] README documents setup, input data, and demo command.

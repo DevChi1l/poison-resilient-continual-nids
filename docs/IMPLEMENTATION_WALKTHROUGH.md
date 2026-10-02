@@ -1236,3 +1236,163 @@ to import test files as a package that the repository does not define. We
 changed the notebook to discover those files by exact filename, require
 nonzero test counts, and still halt on any failure. We have no new model or
 novelty result from the stopped attempt.
+
+---
+
+## 2026-10-03: observed replay/novelty tradeoff and large-data preparation
+
+### Step 1: distinguish the completed Kaggle run from this new code
+
+**Observed attachment, not newly trained locally:** `data/replay/replay.ipynb`,
+its manifest, `test_summary.json`, `strategy_selection.json`, `novelty.json`,
+and plot. The notebook recorded no error outputs, seven targeted tests
+passed (four sampler, three novelty), and Task 1 plus both Task 2 checkpoint
+reload predictions matched. Source was
+`4e46f7f8ded77612210237e8dc9f6ea8e83730da`, input checksum
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`,
+runtime Tesla T4/Python 3.13.15/PyTorch 2.11.0+cu128.
+
+The predeclared **validation** macro-F1 selected class-balanced sampling:
+`0.8529213667` versus `0.7541214312` shuffled. On held-out test rows,
+combined accuracy was `0.8508333333` versus `0.7804166667`; old-class
+accuracy `0.8353333333` versus `0.6826666667`; new-class accuracy fell to
+`0.8766666667` from `0.9433333333` (balanced versus shuffled). Balanced
+Benign FPR was still `0.6166666667`, although shuffled was `0.9366666667`.
+The arms took 370 and 444 optimizer steps (10 versus 12 epochs), so they
+are not equal-compute. The exposure plot shows balanced draws near 1/8 per
+class, while shuffled reflects 100 old versus 1,400 new rows per class.
+One seed, one 2,000-per-class subset, and unknown per-row source provenance
+limit generalization.
+
+For actual held-out novelty, the Task 1 five-output model used only known
+validation confidence to freeze a fifth-percentile threshold of
+`0.9247980118`. It flagged 170/900 unseen Task 2 test rows: unknown recall
+`0.1888888889`, precision `0.7142857143`; it falsely rejected 68/1500 known
+Task 1 test rows (`0.0453333333`). Per-class unknown recall was 0.11
+Infiltration, 0.1033 Webattack, and 0.3533 Portscan. The plot shows high
+confidence for many unknowns. This is real evidence that maximum-confidence
+thresholding is weak for this split, not evidence of a reliable novelty
+detector.
+
+### Step 2: persist the full row-level split without full feature loading
+
+**New code:** `src/data/large_data.py` provides
+`prepare_full_partitions(parquet_path, output_dir, seed=42)` and
+`verify_full_partitions(...)`. It scans only `ClassLabel` in existing bounded
+Parquet batches, maps the documented eight names to global IDs 0–7, and
+assigns every original row once to a seeded 70/15/15 class-stratified
+partition. Persisted `labels.npy`, `splits.npy`, `row_ids.npy`, and explicit
+`train_indices.npy`, `validation_indices.npy`, `test_indices.npy` retain the
+mapping. The verifier checks sequential original IDs, valid class/split
+codes, complete coverage, per-class counts, and each index file against
+the split codes. A three-row example with row IDs `[0,1,2]` and split codes
+`[0,1,2]` means one train, one validation, one test row; no ID is duplicated.
+The actual 9,167,581-row counts are **not yet generated**. Row-level
+stratification cannot guarantee independence among duplicate flows or flows
+from one capture session because the collection has no session provenance.
+
+### Step 3: write bounded features and fit two separate states
+
+`prepare_raw_feature_store()` reads only the 54 retained numeric columns
+plus `ClassLabel` for an alignment check; `Label` and `ClassLabel` never
+enter `X`. Each bounded batch writes row-aligned float32 values to one
+`raw_features.npy` memory map. Negatives and non-finite values become NaN,
+as in the existing small-array pipeline. It does not allocate the full
+float64 source matrix or concatenate whole partitions. A feature row's
+array position remains its original Parquet row ID; for example, stored
+row 42 pairs with label and split entries 42.
+
+`fit_disk_preprocessor(root, scope='static'|'continual')` makes **separate**
+preprocessing records. Static fit can see all rows with train split code;
+continual fit can see only train rows whose global IDs are 0–4. A seeded
+without-replacement reservoir of at most 200,000 authorized rows estimates
+each median. This is deliberately **approximate** (unlike the original
+small-array exact median); its seed, size, scope, and method are recorded.
+After imputation, Welford-style streaming batch moments compute population
+mean/std over every authorized training row. Validation/test and future
+Task 2 rows never fit the continual state. In a tiny example where old
+train feature values are 1 and new train values are 101, continual mean
+stays 1 while static mean changes; a validation value of 10,000 changes
+neither fit. Each state freezes before future transformation.
+
+Completed split, feature-store, and state records can be reused on a restart;
+an interrupted unmarked stage rebuilds its partial file. The Kaggle
+notebook verifies the input checksum first and checks disk capacity. This
+does not make the input provenance known or repair duplicate-flow leakage.
+
+### Step 4: offer bounded-batch training and measure only throughput
+
+**New code:** `src/training/disk_backed.py` exposes
+`DiskBackedFlowDataset(root, preprocessor, partition, class_ids, row_ids=None)`
+and `fit_disk_backed(model, train, validation=None, ...)`. The view holds
+integer row positions and a read-only memory map; each batch loads only its
+requested raw rows, transforms with the frozen state, and returns float32
+features, int64 global labels, and original IDs. It rejects class or split
+violations at view construction. Shuffled order uses a seed and epoch;
+optional balanced order samples from per-class integer buckets with
+replacement, so no float64 weight per full-data row is allocated. The
+trainer uses the existing Transformer network/config/class IDs, AdamW,
+cross-entropy, checkpoint save/load format, and clean validation-loss
+best-state/early-stopping logic. Existing `fit(X, y, ...)` remains unchanged.
+The new disk fit can run without validation for a **training-only**
+throughput benchmark; that case selects no checkpoint and makes no claim
+about classification quality.
+
+**New notebook:** `notebooks/kaggle_review2_large_data_prepare.ipynb` pins
+published source `5c0d519596bc6c4b99948126443635c2f7eb15f1`. It
+checks the exact input hash, 9,167,581 row count, 54-column schema, T4,
+package versions, and free working space; runs synthetic checks; prepares
+all original-row partitions and both fit states; then chooses up to 100,000
+**training-only** rows uniformly with seed 42, retaining their natural class
+distribution. Fresh hidden-64/two-layer models receive one training epoch
+at predeclared batch sizes 128 and 256 with mixed precision off. CUDA is
+synchronized around timings. The notebook records actual draws, optimizer
+steps, measured rows/second, process peak RAM, GPU peak allocated/reserved
+memory, preparation/storage cost, and a labeled full-epoch planning estimate
+with 1.5× headroom. Its provisional recommended batch size follows measured
+throughput only; no test metric is opened or tuned. The output folder has
+manifests, arrays, preprocessing JSON, benchmark JSON, and configuration.
+Preserve it as a Kaggle output/private dataset for the next session; never
+commit it.
+
+### Step 5: verify honestly and defer real large-data training
+
+`python3 -m unittest discover -s tests -p 'test_large_data.py' -v` ran four
+synthetic tests: three passed and one torch-dependent CPU trainer test
+skipped because local PyTorch is absent. They cover deterministic complete
+split/restart, targets excluded, row/batch alignment, static versus
+Task-1-only fit, validation/test leakage rejection, stable balanced draws,
+and unchanged small-array preprocessing. Full
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 43 tests:
+39 passed, four skipped (three PyTorch/real-data gated plus the new trainer
+test). `python3 -m compileall -q src tests`, notebook JSON parsing and
+code-cell `ast.parse`, empty-output/Markdown checks, and `git diff --check`
+passed. The full Parquet preparation, T4 benchmark, exact Kaggle disk cost,
+and GPU trainer are **not executed yet**. Published source was pinned so
+Kaggle can run its torch-dependent synthetic test. After reviewing actual
+preparation throughput and capacity, the next phase is real full-data
+training—not another attack family or the full experiment suite here.
+
+### How to explain this in Review 2
+
+The balanced subset taught us that replay exposure helped old classes, but
+Benign errors remained high and simple confidence missed most truly unseen
+attacks. For the full collection, we now separate *preparation* from
+*training*: each original row receives one reproducible split, feature
+batches stream to disk, and separate train-only statistics are frozen for
+static and continual protocols. We will first measure T4 throughput on
+100,000 training rows and use that only to plan resources. We have not
+trained or evaluated the full 9.17-million-row model yet.
+
+Likely faculty questions:
+
+- **Can row-level splits leak related traffic?** Yes. Without flow/session
+  provenance or duplicate groups, class stratification alone cannot rule it
+  out; full-data scores will need that caveat.
+- **Are the medians exact?** No. They are seeded approximate medians from up
+  to 200,000 authorized training rows; means/stds stream all authorized
+  training rows after imputation.
+- **Why two preprocessing states?** Static training may use all eight-class
+  training rows; Task 1 must not learn feature statistics from future Task 2.
+- **Is the full-epoch time a result?** No. Only subset throughput is measured;
+  the full-epoch figure is a 1.5×-headroom planning estimate.

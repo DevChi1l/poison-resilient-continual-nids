@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (Kaggle test-discovery correction)
+Last updated: 2026-10-03 (large-data preparation and benchmark notebook)
 
 ## Current state
 
@@ -15,15 +15,16 @@ novelty baseline are implemented. The active branch is
 published to `origin/feature/unified-novelty` with upstream tracking on
 2026-10-02. No merge to `main` occurred.
 
-The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual
-comparison, and replay-label mitigation comparison have executed. None
-establishes production/full-dataset performance. Held-out novelty has not yet
-been executed.
+The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
+replay-label mitigation, balanced replay-exposure, and held-out novelty
+comparisons have executed. None establishes production/full-dataset
+performance; the large-data preparation/benchmark notebook is unexecuted.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
-training sampler, and novelty-evaluation APIs are implemented. The new clean
-replay-exposure/held-out-novelty notebook is prepared, not executed.
+training sampler, and novelty-evaluation APIs are implemented. New disk-backed
+full-row preparation and training interfaces are prepared but not used in a
+large-data Kaggle run yet.
 
 ## What is confirmed
 
@@ -73,10 +74,9 @@ replay-exposure/held-out-novelty notebook is prepared, not executed.
 
 ## Known blockers and limitations
 
-- Confidence thresholding remains a simple baseline. The new notebook plans
-  genuine held-out Task 2 evaluation, but has not executed; no novelty result
-  has been observed. Its predeclared fifth-percentile threshold is calibrated
-  only when Kaggle runs it.
+- Confidence thresholding remains a simple baseline. The held-out Task 2
+  evaluation ran and achieved low unknown recall (170/900); one class split
+  and seed do not establish general novelty performance.
 - PyTorch is unavailable in the local system environment; current sampler
   fit tests are skipped locally and included as Kaggle notebook checks.
   Earlier Kaggle T4 training and reload checks succeeded. The opt-in
@@ -85,8 +85,8 @@ replay-exposure/held-out-novelty notebook is prepared, not executed.
   the Parquet file alone.
 - Clean task/replay and six replay-label/gate conditions have run, but Benign
   results remain weak and filtering did not consistently improve accuracy.
-  Balanced exposure and held-out novelty evaluation are prepared, not run;
-  streaming and one-command integration remain unimplemented.
+  Balanced exposure and held-out novelty evaluation ran on a bounded subset;
+  full-data training and one-command integration remain unimplemented.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -142,17 +142,18 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Rerun the corrected `notebooks/kaggle_review2_replay_balance_novelty.ipynb`
-in a fresh Kaggle T4 session with
-the same attached input. Review the clean exposure comparison, validation-only
-strategy choice, actual held-out novelty metrics, work counts, and reload
-checks before preparing large-data streaming and throughput benchmarks.
+Run `notebooks/kaggle_review2_large_data_prepare.ipynb` on Kaggle T4 with the
+reviewed Parquet attachment. Return its preparation manifests, split counts,
+two preprocessing states, benchmark record, and executed notebook before
+planning real full-data training. Preserve its disk arrays as private Kaggle
+outputs; they are not committed to Git.
 
 ## Observed results
 
-Small smoke, clean balanced-subset, static poisoning, clean continual, and
-replay-label mitigation results were observed. Balanced training exposure and
-held-out novelty have no observed result yet.
+Small smoke, clean balanced-subset, static poisoning, clean continual,
+replay-label mitigation, balanced replay exposure, and held-out confidence
+novelty results were observed on bounded data. Full-row preparation and
+large-data training have not executed.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -347,3 +348,60 @@ syntax checks, Markdown staging, empty outputs, pinned SHA, and
 `git diff --check` passed. Kaggle GPU/data execution remains unverified after
 the correction; rerun the notebook from a fresh session before interpreting
 any experiment result.
+
+## Observed balanced replay/novelty run and full-row preparation phase
+
+Fetched origin and verified local/remote unified HEAD
+`8c09efccb5593247a8c57f34e200f262066e9400` before editing. Inspected
+untracked `data/replay/replay.ipynb`, `manifest.json` (the supplied manifest
+artifact), `test_summary.json`, `strategy_selection.json`, `novelty.json`,
+and `training_exposure_novelty.png`. The executed notebook has no error
+outputs. All seven targeted Kaggle tests passed (4 sampler, 3 novelty), and
+Task 1 plus both Task 2 checkpoint reloads matched. Source
+`4e46f7f8ded77612210237e8dc9f6ea8e83730da`; Tesla T4, Python 3.13.15,
+PyTorch 2.11.0+cu128; input SHA-256
+`666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+
+The **validation-only** criterion selected class-balanced replay: validation
+macro-F1 `0.8529213667` versus shuffled `0.7541214312`. Subsequent test
+combined accuracy was `0.8508333333` versus `0.7804166667`, old-class
+accuracy `0.8353333333` versus `0.6826666667`, and new-class accuracy
+`0.8766666667` versus `0.9433333333` (balanced versus shuffled). Benign FPR
+improved but remained high at `0.6166666667` (shuffled `0.9366666667`).
+Balanced/shuffled used 370/444 optimizer steps (10/12 epochs), so the result
+is not equal-compute. One seed and a 2,000-per-class balanced subset do not
+establish general or production performance.
+
+The frozen fifth-percentile Task 1 validation confidence threshold was
+`0.9247980118`. Held-out unknown recall was 170/900 = `0.1888888889`,
+known false rejection 68/1500 = `0.0453333333`; unknown precision was
+`0.7142857143`. This is an actual held-out-class result for the simple
+confidence baseline, but poor unknown recall; it is not broad novelty
+robustness. The plot shows near-uniform balanced draw shares, dominant
+near-one confidence for both known and held-out rows, and the fixed cutoff.
+
+Prepared `src/data/large_data.py`: full-row deterministic 70/15/15
+class-stratified split, persisted original IDs/split indices/counts,
+row-aligned bounded-batch float32 feature store excluding both targets,
+and separate static versus Task-1-only continual preprocessing states.
+Medians use a recorded seeded 200,000-row training-only reservoir per scope
+(approximate); streaming population moments use all authorized training rows
+after imputation. Completed stages can be reused; partial stages rebuild.
+`src/training/disk_backed.py` supplies bounded-batch views and a trainer
+compatible with existing model class IDs, save/load, validation-loss early
+stopping, and deterministic shuffled/class-bucket balanced order without a
+float64 weight per full-data row. Existing small-array APIs remain unchanged.
+
+`notebooks/kaggle_review2_large_data_prepare.ipynb` pins published source
+`5c0d519596bc6c4b99948126443635c2f7eb15f1`. It checks the reviewed
+input hash, GPU and disk capacity, prepares all rows and both states, then
+benchmarks one epoch on a fixed naturally distributed training-only subset
+of up to 100,000 rows at batch sizes 128 and 256. It saves measured rows,
+steps, timings, RAM/GPU peaks, storage costs, and labeled 1.5x-headroom
+full-epoch estimates plus a provisional configuration. It does **not** run
+full training, select by test, or produce large-data metrics. Local synthetic
+suite: 4 tests, 3 passed, 1 PyTorch-dependent skipped; full suite 43 tests,
+39 passed, 4 skipped. Source compilation, notebook JSON/code syntax and
+empty-output checks, and `git diff --check` passed. GPU and full-row prep
+are still unverified; next phase is real large-data training only after
+reviewing this preparation run.

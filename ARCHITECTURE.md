@@ -6,9 +6,10 @@ The bounded data/preprocessing package, tabular Transformer classifier,
 confidence-threshold novelty component, static random/targeted label flips,
 known-class classification metrics, clean two-task/replay preparation, and a
 simple frozen-teacher replay-label gate are implemented. Kaggle T4 smoke,
-clean-baseline, static poisoning, and clean continual comparisons ran. The
-replay-poisoning/mitigation notebook is prepared but unexecuted; stronger
-mitigation and the one-command pipeline remain incomplete. Developers A+B+C are one owner;
+clean-baseline, static poisoning, clean continual, replay-label mitigation,
+balanced replay exposure, and held-out confidence novelty comparisons ran
+on bounded subsets. Full-row preparation and training have not run;
+the one-command pipeline remains incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
 ```text
@@ -154,7 +155,9 @@ counts, with optional benign false-positive and source-to-target error rates.
 old_class_ids, all_class_ids)` computes old-class before-minus-after accuracy
 and macro-F1 on the identical old-class test rows. It averages the same old
 classes at both times; predictions into new classes remain errors. Negative
-forgetting indicates improvement. Held-out-unknown metrics remain planned.
+forgetting indicates improvement. Held-out-unknown metrics are implemented
+and were exercised on the bounded Task 1/Task 2 class split; their observed
+recall was low and does not establish broad novelty performance.
 
 ## Clean continual-learning contract
 

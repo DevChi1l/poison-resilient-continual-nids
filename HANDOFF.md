@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Kaggle test discovery
-> corrected.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Full-row preparation
+> and throughput notebook prepared.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -666,3 +666,64 @@ balanced-replay, or held-out novelty outputs. Return executed notebook and
 timestamped output folder. Only after that review proceed to streaming
 preparation/throughput benchmarking. Do not claim this failed run produced
 experiment metrics.
+
+---
+
+## 2026-10-03: full-row preparation and throughput notebook prepared
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Started by fetching
+origin and verifying local/remote HEAD
+`8c09efccb5593247a8c57f34e200f262066e9400`. All untracked `data/`
+attachments, previous notebooks, model, and small-array APIs were preserved.
+
+Reviewed untracked executed `data/replay/replay.ipynb`, `manifest.json`,
+`test_summary.json`, `strategy_selection.json`, `novelty.json`, and plot.
+There were no notebook errors; 4 sampler and 3 novelty Kaggle tests passed;
+Task 1 and both Task 2 checkpoint reload predictions matched. Validation
+macro-F1 selected balanced replay (.8529214 vs .7541214 shuffled). Test
+combined accuracy balanced/shuffled .8508333/.7804167; old
+.8353333/.6826667; new .8766667/.9433333. Balanced Benign FPR remained
+.6166667. Balanced/shuffled took 370/444 optimizer steps, so this is a
+single-seed, unequal-work, bounded-subset comparison. Fifth-percentile
+known-validation threshold .9247980 flagged only 170/900 unseen Task 2
+rows (unknown recall .1888889) and 68/1500 known rows (false rejection
+.0453333). Confidence novelty is weak here, not established broadly.
+
+New `src/data/large_data.py` prepares deterministic full-row 70/15/15
+class-stratified partitions with original row IDs and split indices; scans
+Parquet features in bounded batches into one row-aligned float32 disk store;
+excludes `Label`/`ClassLabel` as features; and fits independent static and
+Task-1-only continual states. Approximate medians use a seeded, recorded
+200,000-row training-only reservoir; population means/stds stream all
+authorized training rows. Completed stages are restartable. New
+`src/training/disk_backed.py` trains from bounded transformed batches with
+the existing Transformer, class IDs, checkpoint format, and validation-loss
+early stopping. Deterministic class-bucket balanced draws require no
+full-data float64 weight vector. No large-data model training was run.
+
+Published source commits `6badb33ec3b5c074a174bf3b188571daf53e8f5f`
+and `5c0d519596bc6c4b99948126443635c2f7eb15f1`; new
+`notebooks/kaggle_review2_large_data_prepare.ipynb` pins the latter. It
+verifies GPU, source SHA, input checksum, row count and output space, saves
+complete partitions and both fit states, then measures one epoch on a fixed
+training-only sample of up to 100,000 naturally distributed rows at batches
+128 and 256. It records measured throughput, RAM/GPU peaks, optimizer steps,
+storage, and clearly labeled 1.5x-headroom full-epoch estimates, plus a
+provisional configuration. No test metrics are opened. Persist full output
+folder as a Kaggle version/private dataset, never in Git.
+
+Verification: `python3 -m unittest discover -s tests -p 'test_large_data.py'
+-v` ran 4 synthetic tests, 3 passed and 1 PyTorch-dependent skipped.
+Repository `unittest` discovery ran 43 tests, 39 passed and 4 skipped.
+Source compilation, notebook JSON/Python syntax/empty-output checks, and
+`git diff --check` passed. Local PyTorch/CUDA were unavailable. The full
+9,167,581-row preparation and T4 throughput benchmark are **not executed**.
+
+Next: run the new notebook on Kaggle with Internet, T4, and the exact
+reviewed input. Return executed notebook plus `manifest.json`,
+`split_manifest.json`, `features_manifest.json`,
+`preprocessing_static.json`, `preprocessing_continual.json`,
+`benchmark_results.json`, `recommended_full_run.json`, and file-size report.
+Retain all `.npy` files privately for the next session. Review disk/throughput
+measurements before real full-data training; do not start the full suite in
+this preparation phase.

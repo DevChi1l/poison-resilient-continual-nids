@@ -42,9 +42,10 @@ Synthetic data may be used only for a component smoke test and must never be pre
   static label flips, clean two-task construction, replay selection,
   known-class/forgetting evaluators, and a simple replay-label consistency
   gate exist. Kaggle T4 smoke, balanced clean, static poisoning, and clean
-  continual runs have been observed; see `PROJECT_STATUS.md`. None is a
-  deployment or held-out unknown-attack result. Replay-label poisoning and
-  the gate comparison are prepared but not yet run.
+  continual, replay-label mitigation, balanced replay-exposure, and held-out
+  novelty runs have been observed; see `PROJECT_STATUS.md`. None is a
+  deployment/full-data result. The held-out confidence baseline had low
+  unknown recall; full-row preparation and training have not run.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 
