@@ -122,6 +122,11 @@ python run_pipeline.py --config configs/review2_smoke.yaml
 
 This command must not be documented as available until `run_pipeline.py`, the configuration file, dependencies, dataset instructions, and a successful observed smoke run are committed.
 
+For the next verification step, [the Kaggle GPU smoke notebook](notebooks/kaggle_review2_smoke.ipynb)
+checks a small, seeded sample with the existing data, model, and novelty APIs.
+It has not been run on Kaggle yet and is not an end-to-end continual-learning
+or poisoning experiment.
+
 ## Reproducibility and research integrity
 
 Every experiment must record:

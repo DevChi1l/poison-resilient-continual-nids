@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-02 23:29 IST
+Last updated: 2026-10-02 23:36 IST
 
 ## Current state
 
@@ -17,6 +17,12 @@ published to `origin/feature/unified-novelty` with upstream tracking on
 
 There is no executable end-to-end pipeline, checkpoint, or model/novelty
 experiment result. Real-data model training has not been verified.
+
+`notebooks/kaggle_review2_smoke.ipynb` is prepared for the next Kaggle GPU
+smoke run. It pins the published source foundation
+`22e797660307bfed62b739d61b5e4c05bcb0a187`, samples 64 rows per broad
+class with seed 42, and records observed artifacts under `/kaggle/working`.
+It has not been executed on Kaggle.
 
 ## What is confirmed
 
@@ -77,13 +83,31 @@ experiment result. Real-data model training has not been verified.
   the Parquet file alone.
 - Continual tasks, replay, label-flip poisoning, mitigation, evaluation, and
   one-command integration are not implemented.
+- The new Kaggle notebook has passed local structure/syntax checks only. Its
+  GPU fit, attached Parquet path, metrics, checkpoint reload, and saved manifest
+  still require a recorded Kaggle execution.
+
+## Kaggle notebook preparation verification on 2026-10-02
+
+- Fetched `origin`; `origin/feature/unified-novelty` and local `HEAD` matched at
+  `22e797660307bfed62b739d61b5e4c05bcb0a187` before notebook edits.
+- Validated notebook JSON, code-cell Python syntax, Markdown before each code
+  stage, and empty execution counts/outputs: 19 cells, 9 code cells, passed.
+- `python3 -m unittest tests.test_novelty -q`: 9 passed.
+- `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 16 passed,
+  1 opt-in real-data model test skipped.
+- PyTorch and `nbformat` are unavailable locally. No local GPU training or
+  real-data run was performed. The unrelated `data/data_vis.ipynb` remains
+  untracked and untouched.
 
 ## Immediate next action
 
-Implement deterministic, configurable training-label flipping while preserving
-the original labels and recording changed indices, requested/achieved rates,
-and seed. After that, continual tasks, replay, mitigation, evaluation, and
-integration remain the unified team's responsibility.
+Run the Kaggle smoke notebook, download its timestamped output folder, and
+review the exact environment, history, metrics, timings, and reload result.
+Choose the next implementation prompt only after that review. Deterministic
+training-label flipping remains the next planned code component; continual
+tasks, replay, mitigation, evaluation, and integration remain the unified
+team's responsibility.
 
 ## Observed results
 

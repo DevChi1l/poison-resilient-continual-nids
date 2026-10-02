@@ -278,3 +278,159 @@ current environment lacks PyTorch. The real-data test is reported as skipped.
 **What comes next?** Deterministic label flipping on training labels only,
 followed later by continual tasks, replay, mitigation, evaluation, and the
 end-to-end runner.
+
+---
+
+## 2026-10-02 — Kaggle GPU smoke notebook preparation
+
+Notebook: `notebooks/kaggle_review2_smoke.ipynb`
+
+Published source revision pinned inside the notebook:
+`22e797660307bfed62b739d61b5e4c05bcb0a187` on
+`feature/unified-novelty`. The notebook commit itself cannot be its own source
+pin; the pinned revision contains the existing data, model, and novelty APIs
+that the notebook will execute.
+
+### Step 1: verify the foundation and define scope
+
+**What changed and why:** We fetched `origin` and verified that local and
+published `feature/unified-novelty` matched the full SHA above. `main` is behind
+and does not contain the combined implementation. We chose the published
+unified revision to make the Kaggle code checkout repeatable. This is a smoke
+test of existing components, not a continual-learning or poisoning experiment.
+
+**Files and connection:** We inspected `src/data/{sampling,splitting,preprocessing}.py`,
+`src/models/tabular_transformer.py`, `src/novelty/confidence.py`, and their
+public package exports. The notebook imports those APIs directly and does not
+change them. The untracked `data/data_vis.ipynb` was preserved.
+
+**Verification:** `git fetch --prune origin`, `git status --short --branch`,
+`git log --oneline --decorate -8`, and `git ls-remote --heads origin` showed
+the unified remote/local branch at the same SHA. This verifies the source
+revision, not Kaggle execution.
+
+### Step 2: set up and inspect Kaggle
+
+**What the notebook does:** Its opening Markdown explains how to import the
+`.ipynb`, enable Internet and GPU, and attach the private combined flow Parquet
+file as a Kaggle input. The first code cell clones the published branch,
+checks out the exact source SHA in detached mode, asserts it, and prints it.
+The second stage records Python, NumPy, pandas, PyArrow, and PyTorch versions,
+CUDA availability, CUDA build, GPU name, and selected device. Small import and
+array checks catch basic compatibility problems. There is no package install
+command, so Kaggle's supplied CUDA-enabled PyTorch remains intact.
+
+**Why and inputs/outputs:** The input is the public source repository and the
+Kaggle runtime; the outputs are an exact code checkout and an environment
+record for the manifest. GPU is required unless the user explicitly changes
+`ALLOW_CPU_FALLBACK` to `True`.
+
+**Concrete example:** If CUDA is unavailable with the default setting, the
+notebook raises a message asking for a Kaggle GPU. It does not silently run a
+CPU experiment.
+
+### Step 3: check the model before reading data
+
+**What the notebook does:** It creates 16 seeded synthetic rows with four
+features and two external class IDs, fits a tiny instance for one epoch, and
+checks finite losses, prediction/probability shapes, unit probability sums,
+and `class_ids` mapping.
+
+**Why and connection:** This isolates model/runtime compatibility before a
+full Parquet scan. The synthetic run is labeled functional verification only;
+it does not provide NIDS evidence.
+
+### Step 4: locate and prepare the combined flow collection
+
+**What the notebook does:** It finds `cic-collection.parquet` under
+`/kaggle/input`, with an editable `PARQUET_PATH`. Zero or multiple automatic
+matches stop with a clear error. It invokes the existing
+`sample_class_balanced_indices(..., per_class_limit=64, seed=42)`,
+`stratified_split_indices(..., seed=42)`, and `prepare_sampled_dataset(...)`.
+It prints the partition shapes, broad class mapping, available source counts,
+finite-value checks, and stage timings.
+
+**Why and connection:** The sampler returns original Parquet row indices while
+holding at most 64 per class in its reservoirs. It still scans the complete
+file; preprocessing scans to materialize selected rows and fits medians, means,
+and scales only on training rows. The resulting 54-column `float32` matrices
+and `int64` broad labels connect directly to the existing classifier.
+
+**Concrete example:** For eight broad classes, 64 rows each gives 512 selected
+rows before splitting. The exact train/validation/test shapes are printed by
+the Kaggle run and are not prefilled as observed results here.
+
+### Step 5: train, evaluate, and save what actually happened
+
+**What the notebook does:** It constructs the repository classifier with
+`hidden_dim=16`, `num_heads=2`, `num_layers=1`, `mlp_dim=32`, `batch_size=32`,
+and one epoch. The model uses GPU by default. It checks finite history values,
+test prediction and probability shapes, probability sums, and the mapping
+from winning probability column through `model.class_ids`. The notebook
+computes observed test accuracy, macro-F1, per-class precision/recall/F1, and
+a confusion matrix using the actual test labels and predictions. It calls
+`detect_unknown` with an editable threshold and reports flag counts only.
+
+**Why and outputs:** This checks that the full data-to-model path runs and
+produces auditable outputs. All broad classes are represented during training,
+so a confidence flag cannot be interpreted as an unknown-attack detection
+success. A held-out unknown-class protocol remains necessary.
+
+**Artifact connection:** A timestamped `/kaggle/working/review2_smoke_*`
+folder will contain `transformer.pt`, `row_indices.npz`,
+`preprocessing.json`, `metrics.json`, `training_history.json`, and
+`manifest.json`. The indices file stores both sampled original rows and split
+positions/original rows. The preprocessor file stores feature order, fitted
+imputation values, means, scales, and class names. The manifest records the
+source SHA, environment, input path/size/SHA-256, seeds, class order, config,
+threshold, timings, observed metrics, history, and artifact names. A final
+cell reloads the checkpoint and requires identical test predictions before
+marking reload verification true in the manifest.
+
+### Step 6: local verification and remaining limits
+
+**Exact commands run locally:**
+
+```bash
+python3 - <<'PY'
+import ast
+import json
+from pathlib import Path
+notebook = json.loads(Path('notebooks/kaggle_review2_smoke.ipynb').read_text())
+assert notebook['nbformat'] == 4
+for index, cell in enumerate(notebook['cells']):
+    if cell['cell_type'] == 'code':
+        assert cell['execution_count'] is None and cell['outputs'] == []
+        ast.parse(''.join(cell['source']), filename=f'cell-{index}')
+        assert notebook['cells'][index - 1]['cell_type'] == 'markdown'
+print(len(notebook['cells']))
+PY
+python3 -m unittest tests.test_novelty -q
+python3 -m unittest discover -s tests -p 'test_*.py' -q
+git diff --check
+```
+
+**Observed:** Notebook JSON and all code cells parsed; every code cell had
+preceding Markdown and no saved execution output. The notebook has 19 cells,
+including 9 code cells. Nine focused novelty tests passed. Repository
+discovery ran 17 tests: 16 passed and the opt-in real-data model test was
+skipped. The diff whitespace check passed. `nbformat` and PyTorch are not
+installed locally, so the notebook was not executed here. The Kaggle GPU,
+dataset attachment, training history, metrics, checkpoint, and reload status
+remain unverified until the user runs it.
+
+**Next step:** Run it on Kaggle and review the downloaded manifest, metrics,
+history, final printed summary, and any errors before choosing the next
+implementation prompt. Deterministic training-label flipping remains planned
+but is outside this notebook phase.
+
+### How to explain this in Review 2
+
+We pinned the exact published code revision, recorded the Kaggle runtime, and
+tested the model on a tiny synthetic batch before touching the real input. The
+real smoke path then selects a seeded balanced subset of the combined flow
+collection, fits preprocessing only on training rows, runs one small GPU
+training epoch, and saves every input choice and observed output needed to
+reproduce or inspect the run. Its classification metrics describe only this
+small known-class smoke run. Low-confidence flag counts demonstrate the
+novelty interface; they do not measure detection of unseen attacks.

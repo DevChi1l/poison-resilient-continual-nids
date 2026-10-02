@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Publish unified
-> feature branch.” Earlier sections are retained as historical
+> Latest continuation state: see the final dated section, “Prepare Kaggle GPU
+> smoke notebook.” Earlier sections are retained as historical
 > records and do not override the current ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -291,3 +291,57 @@ PyTorch. Novelty performance needs held-out unknown-class evaluation. The next
 implementation task remains deterministic, configurable training-label
 flipping, followed by continual tasks, replay, mitigation, evaluation, and
 integration under the unified team's ownership.
+
+---
+
+## 2026-10-02 23:36 IST: Prepare Kaggle GPU smoke notebook
+
+Developer: Unified A+B+C team / Codex
+
+Branch: `feature/unified-novelty`
+
+### Completed
+
+- Fetched `origin` and verified the published unified branch, local `HEAD`,
+  and remote branch all pointed to
+  `22e797660307bfed62b739d61b5e4c05bcb0a187` before editing. `main`
+  remained at `53f7a84` and lacks this combined foundation.
+- Added `notebooks/kaggle_review2_smoke.ipynb`, pinned to that full source SHA.
+  It explains Kaggle setup, checks the environment without replacing CUDA
+  PyTorch, performs a synthetic functional model check, selects the attached
+  Parquet path, and invokes existing data/model/novelty APIs.
+- The Kaggle path is configured for 64 rows per broad class, seeds 42, a
+  stratified split, training-only preprocessing, and one epoch of the tiny
+  Transformer on GPU by default. An explicit CPU fallback is available.
+- The notebook checks predictions/probabilities and external class-ID mapping,
+  records observed classification metrics and novelty flag counts, saves
+  indices/preprocessor/checkpoint/history/manifest, and verifies reload
+  predictions. All outputs are created at execution time only.
+- Updated the implementation walkthrough, README, and project status.
+
+### Verification and current limits
+
+- Local notebook JSON, code syntax, Markdown order, and empty-output validation
+  passed: 19 cells, including 9 code cells.
+- Novelty tests: 9 passed. Repository `unittest` discovery: 16 passed,
+  1 opt-in real-data model test skipped.
+- PyTorch and `nbformat` are absent locally; Kaggle GPU execution and the
+  attached dataset path are not verified yet. No model metrics or checkpoint
+  were generated in this session.
+- Unrelated untracked `data/data_vis.ipynb` was preserved.
+
+### Changed files
+
+- `notebooks/kaggle_review2_smoke.ipynb`
+- `docs/IMPLEMENTATION_WALKTHROUGH.md`
+- `README.md`
+- `PROJECT_STATUS.md`
+- `HANDOFF.md`
+
+### Next action
+
+Run the notebook on Kaggle with Internet, GPU, and the private attached
+`cic-collection.parquet`. Send back the final printed run summary and
+`manifest.json`, `metrics.json`, and `training_history.json` for review. Do
+not treat confidence flags as unknown-class performance. Choose the next
+implementation task after inspecting this execution.
