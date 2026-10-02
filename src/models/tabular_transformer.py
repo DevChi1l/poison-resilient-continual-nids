@@ -222,8 +222,9 @@ class TabularTransformerClassifier:
         X_val: np.ndarray | None = None,
         y_val: np.ndarray | None = None,
         replay: tuple[np.ndarray, np.ndarray] | None = None,
+        verbose: bool = False,
     ) -> TrainingHistory:
-        """Train on one task, optionally mixing a replay batch into the task data."""
+        """Train on one task, optionally printing each epoch's observed values."""
 
         train_features = self._validate_features(X_train)
         train_labels = self._validate_labels(y_train, expected_rows=train_features.shape[0])
@@ -287,6 +288,12 @@ class TabularTransformerClassifier:
             history.epochs_completed = epoch + 1
 
             if validation_data is None:
+                if verbose:
+                    print(
+                        f"Epoch {history.epochs_completed}/{self.config.epochs} "
+                        f"train_loss={history.train_loss[-1]:.6f}",
+                        flush=True,
+                    )
                 continue
 
             validation_loss, validation_accuracy = self._validation_loss_and_accuracy(
@@ -295,6 +302,14 @@ class TabularTransformerClassifier:
             )
             history.validation_loss.append(validation_loss)
             history.validation_accuracy.append(validation_accuracy)
+            if verbose:
+                print(
+                    f"Epoch {history.epochs_completed}/{self.config.epochs} "
+                    f"train_loss={history.train_loss[-1]:.6f} "
+                    f"validation_loss={validation_loss:.6f} "
+                    f"validation_accuracy={validation_accuracy:.4f}",
+                    flush=True,
+                )
 
             if validation_loss < best_loss:
                 best_loss = validation_loss
@@ -310,10 +325,18 @@ class TabularTransformerClassifier:
                     self.config.early_stopping_patience is not None
                     and stale_epochs >= self.config.early_stopping_patience
                 ):
+                    if verbose:
+                        print(
+                            f"Early stopping after epoch {history.epochs_completed}; "
+                            f"best validation epoch={history.best_epoch}",
+                            flush=True,
+                        )
                     break
 
         if best_state is not None:
             self.network.load_state_dict(best_state)
+            if verbose:
+                print(f"Restored best validation epoch {history.best_epoch}", flush=True)
         return history
 
     def predict(self, X: np.ndarray) -> np.ndarray:

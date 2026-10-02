@@ -7,7 +7,7 @@ torch = pytest.importorskip("torch")
 from src.models import ModelConfig, TabularTransformerClassifier
 
 
-def test_train_predict_expand_and_checkpoint(tmp_path):
+def test_train_predict_expand_and_checkpoint(tmp_path, capsys):
     rng = np.random.default_rng(7)
     X_train = rng.normal(size=(24, 6)).astype(np.float32)
     y_train = np.repeat(np.array([10, 20], dtype=np.int64), 12)
@@ -28,7 +28,12 @@ def test_train_predict_expand_and_checkpoint(tmp_path):
         early_stopping_patience=None,
     )
     classifier = TabularTransformerClassifier(config, class_ids=[10, 20])
-    history = classifier.fit(X_train, y_train, X_val, y_val)
+    history = classifier.fit(X_train, y_train, X_val, y_val, verbose=True)
+    progress = capsys.readouterr().out
+    assert "Epoch 1/2" in progress
+    assert "Epoch 2/2" in progress
+    assert "validation_loss=" in progress
+    assert "Restored best validation epoch" in progress
 
     probabilities = classifier.predict_proba(X_val)
     predictions = classifier.predict(X_val)

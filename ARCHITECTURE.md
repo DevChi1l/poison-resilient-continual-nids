@@ -41,7 +41,7 @@ The data owner is responsible for fitting preprocessing on the training partitio
 `src/models/` will provide a classifier with:
 
 ```python
-fit(X_train, y_train, X_val=None, y_val=None, replay=None) -> TrainingHistory
+fit(X_train, y_train, X_val=None, y_val=None, replay=None, verbose=False) -> TrainingHistory
 predict(X) -> numpy.ndarray                 # integer class IDs
 predict_proba(X) -> numpy.ndarray           # shape (n_samples, n_known_classes)
 save(path) -> None
@@ -49,6 +49,9 @@ load(path) -> Classifier
 ```
 
 `predict_proba` columns must stay aligned with the exposed `class_ids` property. The model owner must support a tiny CPU smoke run before full training.
+The optional `verbose=True` prints per-epoch observed training and validation
+values; it does not change validation-loss early stopping or best-state
+restoration.
 
 ## Novelty contract
 

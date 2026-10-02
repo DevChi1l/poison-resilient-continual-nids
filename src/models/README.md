@@ -19,7 +19,7 @@ config = ModelConfig(
     mixed_precision=True,    # active only on CUDA
 )
 model = TabularTransformerClassifier(config, class_ids=known_class_ids)
-history = model.fit(X_train, y_train, X_val, y_val, replay=None)
+history = model.fit(X_train, y_train, X_val, y_val, replay=None, verbose=True)
 predictions = model.predict(X_test)
 probabilities = model.predict_proba(X_test)
 model.save("checkpoints/review2_model.pt")
@@ -28,6 +28,10 @@ model.save("checkpoints/review2_model.pt")
 Inputs must follow the contract in `ARCHITECTURE.md`: finite `float32` features
 with shape `(n_samples, n_features)` and one-dimensional integer class IDs.
 `predict_proba` columns always align with `model.class_ids`.
+`verbose=True` prints observed train loss, validation loss, and validation
+accuracy after each epoch. Validation loss still selects and restores the best
+model state before `fit` returns; the default `verbose=False` preserves quiet
+existing callers.
 
 ## Continual-learning support
 
