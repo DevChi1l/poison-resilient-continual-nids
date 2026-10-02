@@ -129,6 +129,27 @@ argument. The caller provides validation/test IDs as exclusions. Task 2
 sequential and replay arms begin from independent reloads of the same Task 1
 checkpoint and expand to 0–7 with the same seed before training.
 
+## Replay-label consistency gate and audit
+
+`src/mitigation/` exposes a NumPy-only score/calibration/gate interface.
+For replay row `i` with supplied old-class label `y_i`, its score is
+`1 - teacher.predict_proba(X_i)[i, column_of(y_i)]`; the column is found
+through the frozen Task 1 teacher's explicit `class_ids`. A threshold is
+calibrated once as the 95th percentile of scores on clean Task 1 validation
+rows. The gate quarantines scores **strictly above** the threshold and returns
+copied retained `(X_replay, y_replay)` or `None` when empty. It receives only
+features, supplied labels, teacher probabilities/class mapping, and the
+frozen threshold. Clean simulator labels and changed-index masks belong only
+to the separate evaluation audit; they cannot repair or inform filtering.
+The gate applies only to old-class replay, never to genuinely new Task 2
+training rows. This is a label-consistency baseline, not a backdoor or
+new-class poisoning defense.
+`src/evaluation.replay_gate_metrics` separately receives the simulator's
+original labels and changed indices *after* gate decisions; it reports poison
+rejection, clean false rejection, retained poison fraction, and retained
+counts per supplied class. Undefined poison rates in clean conditions are
+`None`, not fabricated zeros.
+
 ## Integration contract
 
 `run_pipeline.py` (owned by the unified team) will accept one config, invoke components in order, print only observed values, and save a timestamped JSON result manifest under `results/`. It must support a small CPU smoke configuration before a larger dataset run.
