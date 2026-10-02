@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (replay-poisoning/mitigation preparation)
+Last updated: 2026-10-03 (clean replay exposure and held-out novelty preparation)
 
 ## Current state
 
@@ -15,15 +15,15 @@ novelty baseline are implemented. The active branch is
 published to `origin/feature/unified-novelty` with upstream tracking on
 2026-10-02. No merge to `main` occurred.
 
-There is no executable end-to-end continual pipeline. The one-epoch Kaggle T4
-smoke and a later balanced-subset clean-baseline run completed. Neither
-establishes production/full-dataset or unknown-attack performance.
+The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual
+comparison, and replay-label mitigation comparison have executed. None
+establishes production/full-dataset performance. Held-out novelty has not yet
+been executed.
 
-The clean baseline, static label-flip comparison, and clean two-task
-sequential/replay comparison have executed on Kaggle. Reusable task/replay,
-forgetting, and frozen-teacher replay-label gate APIs are implemented.
-`notebooks/kaggle_review2_replay_poison_mitigation.ipynb` is prepared but
-unexecuted. Stronger mitigation and replay-poisoning results do not exist.
+The static label-flip comparison has also executed on Kaggle. Reusable
+task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
+training sampler, and novelty-evaluation APIs are implemented. The new clean
+replay-exposure/held-out-novelty notebook is prepared, not executed.
 
 ## What is confirmed
 
@@ -43,7 +43,7 @@ unexecuted. Stronger mitigation and replay-poisoning results do not exist.
   batches are supported, and inputs are not mutated.
 - The unrelated untracked `data/data_vis.ipynb` was preserved unchanged.
 
-## Verification observed in this task
+## Historical novelty-baseline verification (2026-10-02)
 
 - `python3 -m unittest tests.test_novelty -v`: 9 passed, 0 failed, 0 skipped.
 - `python3 -m unittest discover -s tests -p 'test_*.py' -v`: 16 passed,
@@ -73,21 +73,20 @@ unexecuted. Stronger mitigation and replay-poisoning results do not exist.
 
 ## Known blockers and limitations
 
-- Confidence thresholding is only a component baseline. Unknown-attack
-  detection performance cannot be claimed until known classes are used for
-  training and genuinely held-out classes are used as unknown evaluation data.
-- No threshold has been calibrated on a validation protocol, and no novelty
-  metric has been produced.
-- PyTorch is unavailable in the local system environment, so the model's new
-  optional progress path could not be run locally. The earlier Kaggle T4 smoke
-  training and checkpoint reload did succeed. The local opt-in real-data test
-  remains skipped.
+- Confidence thresholding remains a simple baseline. The new notebook plans
+  genuine held-out Task 2 evaluation, but has not executed; no novelty result
+  has been observed. Its predeclared fifth-percentile threshold is calibrated
+  only when Kaggle runs it.
+- PyTorch is unavailable in the local system environment; current sampler
+  fit tests are skipped locally and included as Kaggle notebook checks.
+  Earlier Kaggle T4 training and reload checks succeeded. The opt-in
+  real-data local test remains skipped.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
-- Clean task/replay training has run, but its old-class and Benign results
-  remain weak. Replay-label poisoning and a simple gate are prepared, not
-  run. Stronger mitigation, held-out novelty evaluation, and one-command
-  integration remain unimplemented.
+- Clean task/replay and six replay-label/gate conditions have run, but Benign
+  results remain weak and filtering did not consistently improve accuracy.
+  Balanced exposure and held-out novelty evaluation are prepared, not run;
+  streaming and one-command integration remain unimplemented.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -143,16 +142,16 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run the six-condition replay-poisoning/mitigation notebook on Kaggle T4 with
-the same attached input. Review within-run controls, gate audits, condition
-metrics, forgetting, training-work counts, and reload checks before choosing
-stronger replay balancing, timing backdoors, novelty evaluation, or streaming.
+Run `notebooks/kaggle_review2_replay_balance_novelty.ipynb` on Kaggle T4 with
+the same attached input. Review the clean exposure comparison, validation-only
+strategy choice, actual held-out novelty metrics, work counts, and reload
+checks before preparing large-data streaming and throughput benchmarks.
 
 ## Observed results
 
-Small smoke, clean balanced-subset, static poisoning, and clean continual
-results were observed. Replay-label poisoning, the gate's effectiveness,
-held-out novelty, and stronger mitigation have no observed result yet.
+Small smoke, clean balanced-subset, static poisoning, clean continual, and
+replay-label mitigation results were observed. Balanced training exposure and
+held-out novelty have no observed result yet.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -282,3 +281,44 @@ Full `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 31 passed,
 syntax/Markdown/empty-output checks (21 cells, 10 code), and
 `git diff --check` passed. Local PyTorch/CUDA and the private Kaggle input
 were unavailable; no Task 1 regeneration or six-condition GPU run occurred.
+
+## Observed mitigation run and new phase prepared on 2026-10-03
+
+Fetched origin and verified local/remote unified HEAD
+`3b68e0347f4e9229a9a12143c4fc77d2519fcbb0` before edits. Reviewed
+untracked `data/mitigation/manifest.json`, `comparison.json`,
+`calibration.json`, executed `mitigation.ipynb`, and the training-curves plot.
+The notebook had no error outputs. Its source was
+`c636331fc9cdf2361357fd901d9c93411e3f59ba` on Tesla T4, Python
+3.13.15, PyTorch 2.11.0+cu128, NumPy 2.1.3, and PyArrow 23.0.1. All six
+initial expansion hashes matched and six checkpoint reloads passed.
+
+Combined test accuracy was clean unfiltered/filtered `0.7804166667`/
+`0.81375`, random20 unfiltered/filtered `0.81625`/`0.7858333333`, and
+targeted20 unfiltered/filtered `0.81625`/`0.8279166667`. The gate rejected
+100/100 random poisoned rows and 80/80 targeted poisoned rows, while falsely
+rejecting about 4–5% of clean replay candidates. Benign FPR across conditions
+remained `0.90`–`0.9533333333`. Success at identifying these labels did not
+consistently improve classification: random20 filtered was worse than its
+unfiltered pair. Optimizer steps differed (clean 444/444, random20 370/648,
+targeted20 444/504, unfiltered/filtered). These are one-seed, unequal-work,
+balanced-subset results; they do not prove broad poisoning resistance.
+
+Published source commit `4e46f7f8ded77612210237e8dc9f6ea8e83730da`
+adds optional `training_sampler='class_balanced'` with seeded inverse-class-
+frequency replacement draws, while ordinary shuffled training remains the
+default. The 500 unique stored replay examples are unchanged. Training
+history now records expected and observed class exposure, unique replay rows
+drawn, total draws, optimizer steps, and generator-state hashes by epoch.
+Added known-validation fifth-percentile confidence calibration and external-
+class-ID-aware novelty metrics, including defined empty-denominator behavior.
+`notebooks/kaggle_review2_replay_balance_novelty.ipynb` pins that published
+source, compares clean shuffled/balanced Task 2 arms with validation-only
+strategy selection, and evaluates Task 1 known test against genuinely held-
+out Task 2 test **before** expansion. It has no execution outputs or result
+yet. Local full `unittest` discovery: 39 tests, 36 passed, 3 skipped (two
+PyTorch-gated sampler tests and one opt-in real-data test). Source compilation
+passed. Kaggle will run the torch-dependent synthetic checks; local PyTorch,
+CUDA, and private input remain unavailable. The untracked attachments remain
+outside Git. Streaming preparation/throughput benchmarking follows review of
+the new Kaggle run.

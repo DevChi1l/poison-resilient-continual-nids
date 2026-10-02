@@ -1,8 +1,8 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Review smoke and
-> prepare Kaggle clean baseline.” Earlier sections are retained as historical
-> records and do not override the current ownership or implementation status.
+> Latest continuation state: see the final dated section, “Clean replay exposure
+> and held-out novelty prepared.” Earlier sections are historical and do not
+> override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
 
@@ -569,3 +569,61 @@ Verification: focused label-consistency suite 5 passed; repository
 `compileall`, notebook JSON/code syntax/Markdown-stage/empty-output checks
 (21 cells, 10 code), and `git diff --check` passed. Local PyTorch/CUDA and
 the private Kaggle input were unavailable, so no local GPU result is claimed.
+
+---
+
+## 2026-10-03: clean replay exposure and held-out novelty prepared
+
+Owner: unified A+B+C. Branch: `feature/unified-novelty`. Fetched origin and
+verified local/remote HEAD `3b68e0347f4e9229a9a12143c4fc77d2519fcbb0`
+before editing. Source API commit
+`4e46f7f8ded77612210237e8dc9f6ea8e83730da` was normally pushed and is
+pinned by the new notebook. No main merge; local `data/` attachments preserved.
+
+Reviewed the untracked mitigation manifest, comparison, calibration,
+executed notebook, and plot. The six-condition run used source
+`c636331fc9cdf2361357fd901d9c93411e3f59ba` on Tesla T4 with Python
+3.13.15 and PyTorch 2.11.0+cu128. All six expansion weight hashes matched,
+and six checkpoint reloads passed. Combined accuracy clean: .7804166667
+unfiltered, .81375 filtered; random20: .81625/.7858333333; targeted20:
+.81625/.8279166667. The gate rejected 100/100 random and 80/80 targeted
+poisoned rows, but falsely rejected about 4–5% of clean candidates. Benign
+FPR remained .90–.9533. Optimizer steps differed across paired conditions:
+clean 444/444, random20 370/648, targeted20 444/504. This single-seed
+result does not establish consistent downstream benefit or deployment safety.
+
+Implemented optional class-balanced sampling in `src.models`, backed by
+NumPy-only inverse-frequency weights in `src.training`. Default shuffled
+training is unchanged. The balanced sampler draws with replacement for the
+combined Task 2 + replay row count; it does not increase the 500 unique stored
+replay examples. History records seed, expected and actual class exposure,
+unique replay rows drawn, total training draws, optimizer steps, and advancing
+generator-state hashes. Added fifth-percentile known-validation confidence
+calibration in `src.novelty` and held-out binary/per-class novelty metrics in
+`src.evaluation`.
+
+Created `notebooks/kaggle_review2_replay_balance_novelty.ipynb`, pinning the
+published source. It rebuilds the Task-1-training-only preprocessor, trains
+one five-output Task 1 model, evaluates known Task 1 and unseen Task 2 test
+rows using a threshold fixed from Task 1 validation **before expansion**,
+then compares shuffled/balanced Task 2 arms from equal expanded weights and
+unchanged replay memory. Each arm's checkpoint uses clean validation loss;
+the preferred strategy is chosen by predeclared seen-class validation
+macro-F1 and Benign FPR tie-breaker, never by test/novelty results. It saves
+source/environment/checksum, row/replay metadata, histories, exposure,
+metrics, checkpoints, plots, and reload checks. Notebook is **not executed**;
+there are no balanced-exposure or held-out-novelty results yet.
+
+Local full `unittest` discovery: 39 tests, 36 passed, three skipped (two
+PyTorch-dependent sampler checks, one opt-in real-data integration check).
+Source compilation passed. Notebook JSON/Python code syntax and empty-output
+checks passed; local PyTorch/CUDA and private dataset are unavailable. Kaggle
+will execute the torch-dependent synthetic tests before dataset scanning.
+
+Next: run the notebook in Kaggle with Internet, T4 GPU, and the same private
+`cic-collection.parquet`. Return executed notebook and timestamped folder:
+`manifest.json`, `strategy_selection.json`, `novelty.json`, `test_summary.json`,
+both arms' `history.json`, `validation_metrics.json`, `test_metrics.json`,
+checkpoint reload flags, `row_indices.npz`, `replay_buffer.npz`, and plot.
+Review actual results, then prepare streaming/throughput benchmarking. Do not
+claim novelty performance or balanced-sampling improvement before the run.

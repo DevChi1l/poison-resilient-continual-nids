@@ -1038,3 +1038,152 @@ Likely faculty questions:
   80/400 eligible, or 16% of all replay for targeted.
 - **Does this prove backdoor resistance?** No. It examines old replay-label
   inconsistency under one teacher, one subset, and one seed.
+
+---
+
+## 2026-10-03: observed mitigation, optional balanced exposure, and held-out novelty protocol
+
+### Step 1: inspect the mitigation execution before choosing the next test
+
+**Observed, not implemented in this step:** the untracked Kaggle
+`data/mitigation/manifest.json`, `comparison.json`, `calibration.json`,
+executed `mitigation.ipynb`, and training-curves plot were inspected. The
+executed notebook had no error outputs. Its source was
+`c636331fc9cdf2361357fd901d9c93411e3f59ba`; the combined-collection
+checksum remained `666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba`.
+The runtime was Tesla T4, Python 3.13.15, PyTorch 2.11.0+cu128, NumPy
+2.1.3, and PyArrow 23.0.1. All six expanded initial-weight hashes matched,
+and six checkpoint reload checks passed.
+
+Combined test accuracy (unfiltered/filtered) was clean
+`0.7804166667`/`0.81375`, random20 `0.81625`/`0.7858333333`, and
+targeted20 `0.81625`/`0.8279166667`. The filter rejected all 100/100
+random and 80/80 targeted poisoned replay labels; it also rejected about
+4–5% of clean candidates. Benign FPR remained `0.90`–`0.9533333333`.
+Optimizer steps were clean 444/444, random20 370/648, and targeted20
+444/504 (unfiltered/filtered); retained replay size and early stopping
+changed training work. Rejection success is **not** the same as downstream
+classification improvement: random20 filtered accuracy was lower than
+random20 unfiltered, while the clean and targeted pairs improved. These are
+single-seed balanced-subset observations, not a general mitigation claim.
+The severe Benign errors motivated a clean exposure comparison before adding
+more defense complexity.
+
+### Step 2: implement an optional training-draw change, not a larger memory
+
+**New code:** `src/training/sampling.py` exposes
+`inverse_frequency_weights(supplied_labels)`. It returns copied per-row
+weights, class counts, and expected class probabilities without touching
+features or input labels. For combined Task 2 + replay training, each old
+class has 100 supplied rows and each new class has 1,400; weight each old
+row `1/100`, each new row `1/1400`. Each class's total weight is 1, so its
+*expected* draw probability is `1/8`, not the ordinary shuffled old-class
+share `100/4700`. This is expectation, not exact per-epoch balance.
+
+`src/models/tabular_transformer.py` adds `ModelConfig.training_sampler`
+(`'shuffled'` by default or `'class_balanced'`) and optional `sampler_seed`.
+`TabularTransformerClassifier.fit()` still concatenates the same supplied
+Task 2 rows and 500-row `(X_replay, y_replay)` buffer. In balanced mode it
+passes those weights to PyTorch `WeightedRandomSampler` with replacement and
+`num_samples=4700` (the combined row count), omitting DataLoader shuffle;
+ordinary mode keeps its seeded shuffle. One seeded sampler generator lives
+through all epochs, so its state advances rather than resetting every epoch.
+Repeated *draws* do not create extra stored replay rows. The history records
+mode/seed, expected class probabilities, actual class counts per epoch and in
+total, generator-state hashes, distinct replay row positions drawn, total
+draws, and optimizer steps. These are exposure measurements, not final NIDS
+metrics. CPU remains a supported device. The implementation follows the
+[PyTorch sampler/DataLoader contract](https://docs.pytorch.org/docs/stable/data.html).
+
+### Step 3: add evaluation functions with explicit information boundaries
+
+**New code:** `src/novelty/calibration.py` computes a fifth-percentile
+threshold from maximum probabilities on **known Task 1 validation** only;
+it rejects empty/invalid calibration input. `src/evaluation/novelty.py`
+summarizes unknown precision/recall/F1, known false-rejection rate, and
+recall by *external* held-out class ID, validating that IDs 5–7 correspond
+exactly to the true unknown rows. Undefined denominators are `None`, not
+invented zero rates. For example, a threshold `0.60` flags confidence
+`0.59` but treats `0.60` as known because `detect_unknown()` uses strict
+`<`. The maximum probability is the Task 1 model's strongest available
+class belief; a low maximum is a useful simple uncertainty signal, but a
+confidently wrong unseen attack can still evade it. Probability columns map
+through `model.class_ids` (0–4 here), not arbitrary global IDs or row
+positions. Validation is needed because malformed probabilities could
+otherwise make thresholds or metrics look meaningful; functions do not
+mutate supplied arrays.
+
+### Step 4: prepare one auditable Kaggle protocol
+
+**New notebook:** `notebooks/kaggle_review2_replay_balance_novelty.ipynb`
+pins published source `4e46f7f8ded77612210237e8dc9f6ea8e83730da`.
+It requires Kaggle Internet/GPU and the attached reviewed Parquet checksum,
+runs synthetic API tests, samples 2,000 per broad class with seed 42, keeps
+the fixed 70/15/15 stratified split and original row IDs, fits preprocessing
+only on Task 1 training rows, and selects 100 unique replay rows per old
+class. The combined flow collection still has unverified per-row provenance.
+
+One fresh five-output Task 1 model trains only on global IDs 0–4. **Part B
+occurs before Task 2 training/head expansion:** it calibrates the predeclared
+fifth percentile of Task 1 validation confidence, freezes the threshold,
+then compares known Task 1 test and genuinely unseen Task 2 test IDs 5–7.
+Future-class validation/test rows never fit preprocessing, train Task 1, or
+tune that threshold. The notebook will report binary unknown metrics, known
+false rejection, and each unknown class's recall; it does not promise success.
+
+**Part A** independently reloads Task 1's checkpoint for the unchanged
+shuffled and new balanced Task 2 arms. Both expand to IDs 0–7 with the same
+seed, assert identical initial weights, and share architecture, optimizer,
+patience, clean seen-class validation, and *identical* 500-row replay memory.
+Each arm's best checkpoint follows clean validation loss. The preferred
+training strategy is predeclared as higher seen-class validation macro-F1,
+with lower validation Benign FPR as an exact-tie breaker. Test and novelty
+scores do not choose it. After this choice, both arms report old/new/combined
+classification, fixed-five-class forgetting (including negative improvements),
+per-class recall/F1, Benign FPR, draw counts, optimizer steps, and checkpoint
+reload identity. The timestamped Kaggle output saves source/environment,
+checksum, split/replay IDs, preprocessing state, histories, selection record,
+novelty predictions/metrics, test metrics, plots, and checkpoints.
+
+### Step 5: verification, limits, and continuation
+
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 39 tests:
+36 passed, three skipped (two PyTorch-gated sampler tests and the opt-in
+real-data model test). Focused synthetic tests cover weights, default
+compatibility, deterministic draws, advancing RNG, strict threshold equality,
+external IDs, non-mutation, and novelty metric edge cases. Source compilation
+passed. Notebook JSON and all code-cell syntax parse, with no fabricated
+execution outputs. Local PyTorch/CUDA and the private Kaggle input are not
+available, so the torch-dependent sampler checks and this notebook's training
+and held-out novelty evaluation must run on Kaggle. No balanced-exposure or
+held-out novelty result exists yet. The following phase, **after** reviewing
+this run, is streaming preparation and throughput benchmarking.
+
+### How to explain this in Review 2
+
+Our replay buffer stores only 500 old examples. In ordinary training, they
+are a small minority among 4,700 rows each epoch; the new option changes
+which rows are *drawn* more often without storing more data. We compare that
+single change from the same Task 1 weights and choose the preferred method
+using validation, not test data. Separately, before the model learns new
+classes, we ask whether low confidence identifies those genuinely unseen
+classes. The threshold comes only from known validation examples. We will
+show the actual results after Kaggle runs; neither good poison rejection nor
+balanced sampling alone guarantees better intrusion detection.
+
+Likely faculty questions:
+
+- **Are balanced draws the same as a balanced memory?** No. Memory remains
+  100 unique rows per old class; replacement draws can repeat rows.
+- **Are the two arms equal compute?** They have the same rows *drawn per
+  epoch* and batch size, but early stopping may yield different epochs and
+  optimizer steps; those are reported.
+- **How is the threshold chosen?** The fifth percentile of maximum
+  probability on clean Task 1 validation only, before unknown test inspection.
+- **What is truly unseen?** Task 2 IDs 5–7 are absent from Task 1 training
+  and its five-output head; they are transformed with frozen Task-1-only
+  preprocessing and evaluated only afterward.
+- **Can this prove novelty performance broadly?** No. It tests one held-out
+  class split, one seed, and one balanced subset of a collection with
+  unverified source provenance. A low confidence score need not reliably
+  distinguish every new attack.
