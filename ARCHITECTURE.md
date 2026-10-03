@@ -10,7 +10,8 @@ clean-baseline, static poisoning, clean continual, replay-label mitigation,
 balanced replay exposure, and held-out confidence novelty comparisons ran
 on bounded subsets. Full-row preparation, subset throughput measurement,
 and a full clean static eight-class run completed on Kaggle. The
-five-class full Task 1 foundation is prepared but has not run;
+five-class full Task 1 foundation also ran; the full Task 2 targeted replay
+comparison is prepared but has not run;
 the one-command pipeline remains incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
@@ -123,7 +124,9 @@ validation-probability matrix. The gate still sees supplied labels only;
 clean originals and simulator changed IDs go to a separate audit. A pure
 `summarize_task2_counts` combines bounded old/new confusion matrices,
 keeps fixed old-class F1 and signed forgetting, and counts predictions into
-new classes as old-class errors.
+new classes as old-class errors. Old/new focused balanced accuracy averages
+only the five/three actually evaluated classes; combined balanced accuracy
+averages all eight.
 
 ## Model contract
 

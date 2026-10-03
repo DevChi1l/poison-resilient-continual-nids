@@ -25,6 +25,8 @@ class FullContinualMetricTests(unittest.TestCase):
         self.assertEqual(result["old_test"]["accuracy"], 2 / 3)
         self.assertEqual(result["combined_test"]["total_rows"], 5)
         self.assertEqual(result["old_test"]["confusion_matrix"][1][5], 1)
+        self.assertAlmostEqual(result["old_focused_balanced_accuracy"], (1 + 0.5) / 5)
+        self.assertAlmostEqual(result["new_focused_balanced_accuracy"], 1 / 3)
         self.assertEqual(result["forgetting"]["accuracy_forgetting"], 0.0)
         self.assertLess(result["forgetting"]["macro_f1_forgetting"], 0)
         self.assertEqual(result["old_attack_to_benign"]["support"], 2)

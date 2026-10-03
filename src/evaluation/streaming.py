@@ -135,6 +135,10 @@ def summarize_task2_counts(before_old_metrics: dict, old_counts: np.ndarray,
                                   for i in range(5)]))
     new_after_f1 = float(np.mean([new_metrics["per_class"][str(i)]["f1"]
                                   for i in range(5, 8)]))
+    old_balanced = float(np.mean([old_metrics["per_class"][str(i)]["recall"]
+                                  for i in range(5)]))
+    new_balanced = float(np.mean([new_metrics["per_class"][str(i)]["recall"]
+                                  for i in range(5, 8)]))
     attack_support = int(old[1:5].sum())
     attack_to_benign = int(old[1:5, 0].sum())
     return {
@@ -142,6 +146,8 @@ def summarize_task2_counts(before_old_metrics: dict, old_counts: np.ndarray,
         "combined_test": combined_metrics,
         "old_focused_macro_f1": old_after_f1,
         "new_focused_macro_f1": new_after_f1,
+        "old_focused_balanced_accuracy": old_balanced,
+        "new_focused_balanced_accuracy": new_balanced,
         "benign_fpr": old_metrics["benign_false_positive"]["rate"],
         "old_attack_to_benign": {
             "count": attack_to_benign, "support": attack_support,
