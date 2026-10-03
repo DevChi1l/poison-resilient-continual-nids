@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (full clean result reviewed; full Task 1 prepared)
+Last updated: 2026-10-03 (full Task 1 pre-run epoch cap set to 12)
 
 ## Current state
 
@@ -507,6 +507,16 @@ rows using the verified continual-only fit state, full old-class validation,
 durable resume, and bounded old-class test/held-out Task 2 novelty evaluation.
 It will persist 100 unique old-class training exemplars per class for later
 Task 2 use. No Task 2 model training or new novelty result is claimed.
+
+Before any full Task 1 result was observed, the notebook's maximum epochs
+was reduced from 20 to 12 solely for the Kaggle time budget. Validation-loss
+selection, patience 5, the remaining configuration, durable per-epoch
+latest/best checkpoints, strict resume, planned evaluation, and replay
+export are unchanged. The completed eight-class static run remains unchanged.
+The revised notebook's 17-cell/8-code-cell syntax, empty-output, source-pin,
+resume/evaluation/replay and max12/patience5 checks passed. The 52-test
+suite reported 47 passed and 5 existing environment/opt-in skips; source
+compilation and `git diff --check` passed. No Task 1 GPU run was performed.
 
 Local synthetic plot tests: 3 passed; disk replay tests: 2 passed. Full
 `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 52 tests,

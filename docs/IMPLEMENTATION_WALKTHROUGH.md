@@ -1649,7 +1649,9 @@ Task 1 training rows. Neither Task 2 nor validation/test fit this state.
 
 It creates a **fresh** five-output model for global IDs 0–4 with hidden64,
 four heads, two layers, MLP128, batch256, lr0.001, seed42, ordinary shuffle,
-mixed precision off, max20 epochs, and patience5. `train_full_disk_backed`
+mixed precision off, max12 epochs, and patience5. The 12-epoch cap is a
+time-budget decision made **before any full Task 1 result was observed**;
+all other settings are unchanged. `train_full_disk_backed`
 processes all 6,347,232 old-class training rows and all old-class validation
 rows in bounded batches, checkpointing latest/best each completed epoch.
 No eight-class static weights or future-class validation labels enter Task 1.
@@ -1680,6 +1682,26 @@ does not silently substitute the earlier balanced subset. Save the entire
 folder privately for the next session; never commit the arrays/checkpoints.
 Task 2 sequential/replay arms are a **separate next phase** after reviewing
 the actual Task 1 run.
+
+**Pre-run time-budget amendment:** The initially prepared notebook capped
+Task 1 at 20 epochs, matching the earlier static baseline configuration.
+Before Task 1 execution or test inspection, we changed only its cap to 12.
+Patience remains 5, so training can still stop earlier when validation loss
+fails to improve; if it reaches epoch 12, the best validation-loss checkpoint
+among completed epochs is used. Per-epoch `latest.pt`/`best.pt` writes,
+strict epoch-boundary resume, subsequent old-class/held-out evaluation, and
+replay export are unchanged. Because epoch count is part of the persisted
+configuration, a hypothetical 20-epoch Task 1 checkpoint would be rejected
+by the 12-epoch notebook rather than silently resumed. The observed
+eight-class static baseline and its 19 completed epochs were not touched.
+The revised notebook parsed as JSON; all 8 code cells passed Python syntax
+checks, with 17 cells total and no execution outputs. The recorded config
+was checked for `epochs=12` and `early_stopping_patience=5`, and the resume,
+evaluation, replay-export, and published-source references remain present.
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 52 tests
+(47 passed, 5 existing environment/opt-in skips); `python3 -m compileall
+-q src tests` and `git diff --check` passed. This verifies preparation,
+not Kaggle execution or a Task 1 metric.
 
 ### Step 5: verification and limits
 

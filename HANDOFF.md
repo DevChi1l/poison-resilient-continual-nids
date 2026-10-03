@@ -857,3 +857,31 @@ folder as a private Kaggle version/input. Return executed notebook,
 `replay_buffer.npz`, `best.pt`, and `latest.pt` privately for later Task 2
 and resumption. Next: inspect actual Task 1 outputs before designing the
 separate Task 2 continuation; do not infer results from the static model.
+
+---
+
+## 2026-10-03: pre-run Task 1 epoch-cap amendment
+
+The unified branch was clean except for preserved untracked `data/`
+attachments. After fetching origin, local/remote HEAD matched
+`9a33b588f0319a8042f68d2883490ec1e7da024b`. The full Task 1 notebook
+was **not run** and no Task 1 results were observed. Set only its maximum
+epochs from 20 to 12 as a predeclared Kaggle time-budget decision. Keep
+patience 5, all other hyperparameters, Task-1-only preprocessing, full
+old-class validation-loss checkpoint selection, durable per-epoch
+`latest.pt`/`best.pt`, strict resume, bounded test/novelty evaluation, and
+500-row clean replay export unchanged. A checkpoint made with the former
+20-epoch configuration will fail resume compatibility rather than silently
+continue under the new cap. Do not alter the completed eight-class static
+baseline or use its test metrics to tune Task 1.
+
+Changed files: the Task 1 notebook, `PROJECT_STATUS.md`, this handoff, and
+`docs/IMPLEMENTATION_WALKTHROUGH.md`. Notebook JSON/code syntax,
+Markdown-before-code, empty outputs, published source pin, max12/patience5,
+resume/evaluation/replay references passed for 17 cells and 8 code cells.
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 52 tests:
+47 passed, 5 skipped (PyTorch-dependent or opt-in real-data checks), zero
+failed. `python3 -m compileall -q src tests` and `git diff --check` passed.
+No local PyTorch/GPU Task 1 run was attempted. Next: run this revised
+notebook on Kaggle with the original prepared folder, preserve the whole
+Task 1 output directory, and review the actual results before Task 2.
