@@ -1547,3 +1547,172 @@ Likely faculty questions:
   one final unbiased assessment after model selection.
 - **Why report balanced accuracy?** Its mean per-class recall does not let
   the large Benign class dominate the summary the way ordinary accuracy can.
+
+---
+
+## Full clean result review and full-data continual Task 1 foundation (2026-10-03)
+
+### Step 1: inspect what actually ran
+
+**Existing code/run, not new training this task.** The attached
+`data/full-train-v2/results/full_clean_20261003T045146_553311Z/` contains
+the eight-class static run's supplied manifests, per-epoch history,
+test confusion counts/metrics, environment, reload report, and two plots.
+The separate `data/full-train.ipynb` has three `NameError` outputs, so we
+do not treat that notebook as evidence of the completed v2 run; the
+completed v2 artifacts support the observations below.
+The run used published source `91a26a1c13a563a7628e217f357dc27f73874784`
+and the previously prepared 9,167,581-row combined flow collection.
+It completed 19 epochs (five-epoch early stopping), with epoch 14 selected
+by **validation loss**. The training manifest sums to `5904.202296291`
+training seconds plus `353.498714439` validation seconds, or
+`104.2950168455` minutes; this excludes separate test inference. The
+full 1,375,134-row test yielded accuracy `0.9828620338090688`, macro-F1
+`0.757755762638612`, balanced accuracy `0.7291289708762002`, and Benign
+FPR `0.00445669840657261` (4,804 false alarms among 1,077,928 Benign
+rows). Infiltration recall was `0.059108799550182736`: 13,328 of 14,228
+were called Benign. Webattack recall was `0.12694877505567928`: 384 of
+449 were called Benign. Thus high accuracy is mainly a majority-class
+summary, not evidence of uniformly strong attack detection. The raw-count
+plot visually hides minority rows because Benign is so numerous. The
+supplied reload JSON states best-state and bounded prediction agreement;
+we did not independently load `.pt` weights locally without PyTorch.
+This is one split, one seed, a combined collection of unverified per-row
+source provenance, and a static classifier—not production or continual
+performance. These test results are a reference, not a tuning set for
+Task 1 architecture, stopping, or novelty threshold.
+
+### Step 2: derive clearer plots from saved counts
+
+**New code:** `src/evaluation/plots.py` exposes
+`confusion_plot_data(record)` and `save_result_plots(metrics_path,
+output_dir, prefix='test')`. The input is the already saved metrics JSON,
+including global `class_ids`, true-row/predicted-column integer confusion
+counts, and class names. It returns/writes a separate raw-count PNG,
+an annotated row-normalized heatmap, and a per-class recall/F1 chart.
+For a true Infiltration row with 5 predictions of Infiltration and 95 of
+Benign, normalization displays 5% on the diagonal and 95% under Benign,
+regardless of how many Benign rows the dataset has. Recall is diagonal
+count divided by true-class support; F1 also accounts for false predictions
+*into* that class. A zero-support row is zero rather than divided by zero.
+The utility validates nonnegative integer counts and external class IDs,
+does not mutate its input, does not overwrite plots, and never opens a
+checkpoint or test dataset. The original `confusion_matrix.png` remains
+untouched. Use, for example:
+
+```python
+from src.evaluation.plots import save_result_plots
+save_result_plots("test_metrics.json", "derived_plots", prefix="static_clean")
+```
+
+**Verified:** `python3 -m unittest discover -s tests -p
+'test_result_plots.py' -v` passed three synthetic tests (external ID mapping,
+zero-support/row normalization, non-mutation, files and no overwrite,
+invalid counts). The utility also generated all three PNGs from the
+attached static `test_metrics.json` in a temporary local folder. This
+reused saved counts only; it was not a second test inference. It does not
+change metrics or correct the model's minority weakness.
+
+### Step 3: select replay positions safely, without training Task 2
+
+**New code:** `src/continual_learning/disk_replay.py` adds
+`select_disk_replay_rows(dataset, class_ids, per_class=100, seed=42)`.
+It requires a disk-backed **training** view, checks each candidate's split
+code, and samples unique original positions without replacement. Output
+is just an integer position vector; `DiskBackedFlowDataset.batch()` then
+reads and transforms only the 500 selected features using the frozen
+Task-1-only state. The notebook saves those features, labels, and original
+row IDs as `replay_buffer.npz` plus an auditable manifest. For a toy view
+with three training rows each of IDs 0 and 1, `per_class=2` returns four
+unique training positions—never validation/test positions. No replay rows
+enter Task 1 model fitting; they are a future Task 2 resource.
+
+**Verified:** `python3 -m unittest discover -s tests -p
+'test_disk_replay.py' -v` passed two synthetic tests: deterministic/balanced
+non-mutating selection and rejection of future/validation or insufficient
+rows. The full prepared arrays were not available locally to sample now.
+
+### Step 4: prepare the five-output full Task 1 notebook
+
+**New, unexecuted notebook:**
+`notebooks/kaggle_review2_full_task1_training.ipynb` pins published source
+`e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9`. It reads the *existing*
+prepared folder in `/kaggle/working` or `/kaggle/input`, validates its
+source/input SHA, split coverage and counts, 54-feature order, raw array
+shapes/dtypes, and both preprocessing scopes. It hashes raw features,
+labels, splits, original IDs, split manifest, and specifically
+`preprocessing_continual.json`; the hash enters its strict resume identity.
+It constructs the continual `FittedPreprocessor`, not the static one. Its
+median was estimated from a recorded 200,000-row seed-42 reservoir of
+Task 1 training only, and its streaming mean/std fit from all 6,347,232
+Task 1 training rows. Neither Task 2 nor validation/test fit this state.
+
+It creates a **fresh** five-output model for global IDs 0–4 with hidden64,
+four heads, two layers, MLP128, batch256, lr0.001, seed42, ordinary shuffle,
+mixed precision off, max20 epochs, and patience5. `train_full_disk_backed`
+processes all 6,347,232 old-class training rows and all old-class validation
+rows in bounded batches, checkpointing latest/best each completed epoch.
+No eight-class static weights or future-class validation labels enter Task 1.
+For a resumed run, model, AdamW, scaler, RNG, history, best-state, and
+patience are restored only when configuration/runtime/data hashes match.
+An interrupted partial epoch repeats from the prior completed boundary.
+
+After validation-loss selection, the notebook verifies best reload, saves
+training curves and the 500-row clean replay buffer, then calibrates a
+maximum-confidence threshold as the fifth percentile of **Task 1
+validation** scores. For instance, if known-validation maxima have fifth
+percentile 0.62, a later test flow at 0.61 is flagged unknown but one at
+0.62 is known. The threshold is frozen before either test group is read.
+Bounded inference with the original five-output head evaluates known Task 1
+test versus genuinely unseen Task 2 test rows; Task 2 is not trained or
+used for calibration. The known pass also accumulates Task 1 confusion
+counts once. `novelty_metrics` reports unknown precision/recall/F1,
+known false-rejection, and per-unknown-class recall. These are planned
+outputs until Kaggle runs. Confidence can still miss new attacks.
+
+The output folder holds config/environment/data identity, a verified copy
+of `preprocessing_continual.json`, `latest.pt`, `best.pt`, per-epoch history,
+replay positions/features/labels,
+reload record, old-class test and novelty JSON, raw/normalized confusion
+plots, class recall/F1 chart, and a final manifest. The notebook supports
+`RESUME_FROM` for an existing working folder or a saved Kaggle input and
+does not silently substitute the earlier balanced subset. Save the entire
+folder privately for the next session; never commit the arrays/checkpoints.
+Task 2 sequential/replay arms are a **separate next phase** after reviewing
+the actual Task 1 run.
+
+### Step 5: verification and limits
+
+The source synthetic tests and attached-count plotting passed as described
+above. `python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 52
+tests: 47 passed, 5 skipped, zero failed. `python3 -m compileall -q src
+tests` passed. Local notebook JSON parse/`ast.parse` verified 17 cells,
+8 code cells, Markdown before stages, empty outputs, and the published
+source pin; `git diff --check` passed. Kaggle GPU training,
+full-data Task 1 test, and held-out novelty results have **not** yet run.
+Local PyTorch-dependent resume-equivalence checks remain skipped without
+PyTorch. Row-level splits cannot guarantee duplicate-flow or session
+independence, and approximate medians plus one seed limit interpretation.
+
+**How to explain this in Review 2:** The full static model tested well on
+the majority of flows, but its Infiltration and Webattack recalls were
+low. We used saved confusion counts to show that clearly without changing
+the model or rerunning the test. Next we will build a separate five-class
+Task 1 model from the same full prepared collection, using a preprocessor
+that has seen only old-class training data. We will save its best validated
+checkpoint and a clean 500-flow replay memory, then test whether its
+confidence distinguishes held-out new classes. Only after reviewing that
+foundation will we train Task 2.
+
+Likely faculty questions:
+
+- **Why not reuse the eight-class static checkpoint?** It already learned
+  the Task 2 classes, so it would invalidate a class-incremental baseline.
+- **Why does Task 1 preprocessing exclude Task 2 training rows?** Otherwise
+  even feature statistics would leak future-task information.
+- **Does high static accuracy mean minority attacks are solved?** No;
+  Infiltration recall was about 5.9% and Webattack about 12.7%.
+- **Is the 500-row buffer used in this run?** It is selected and saved from
+  old-class training rows only; Task 2 replay has not begun.
+- **Is novelty success guaranteed?** No; the fifth-percentile threshold is
+  a predeclared confidence baseline, evaluated only after calibration.

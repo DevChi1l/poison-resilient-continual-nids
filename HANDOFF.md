@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Full clean static
-> large-data run prepared.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Full clean result
+> reviewed; full Task 1 prepared.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -790,7 +790,70 @@ or attached private input folder, and run. Save the run folder after every
 completed epoch. If interrupted, attach that run folder and set
 `RESUME_FROM`; keep the exact prepared input attached. Return executed
 notebook plus `final_manifest.json`, `training_manifest.json`, `history.json`,
-`run_config.json`, `run_environment.json`, `reload_verification.json`,
+`run_config.json`, `run_environment.json`, `preprocessing_continual.json`,
+`reload_verification.json`,
 `test_metrics.json`, `training_curves.png`, `confusion_matrix.png`, and
 checkpoint metadata/files privately. Inspect clean full-data results before
 separate continual/replay and poisoning runs.
+
+---
+
+## 2026-10-03: full clean result reviewed; full Task 1 prepared
+
+Owner: unified A+B+C. Started on `feature/unified-novelty` at
+`3cd90ac217c0842766b5849e2fc343a9a3d2c71f`. Fetched origin and
+preserved untracked `data/` attachments, the separate faculty-presentation
+work, and local interfaces. No main merge, dataset/checkpoint commit, or
+Task 2 training.
+
+Reviewed the supplied full-clean final/training manifests, history,
+test metrics, reload JSON, environment, and original raw-count/training
+plots. The separate `data/full-train.ipynb` has three `NameError` outputs,
+so it is not proof of the completed v2 run; results below come from its
+completed v2 artifacts. Source `91a26a1c13a563a7628e217f357dc27f73874784`;
+19 epochs, best validation-loss epoch 14, measured train+validation
+`104.2950168455` minutes. Full static test accuracy `0.9828620338090688`,
+macro-F1 `0.757755762638612`, balanced accuracy `0.7291289708762002`,
+Benign FPR `0.00445669840657261`; Infiltration recall `0.059108799550182736`
+and Webattack recall `0.12694877505567928`. The high overall accuracy is
+not sufficient: most Infiltration/Webattack rows were called Benign. The
+supplied reload artifact reports best-state and prediction agreement, but
+no independent local checkpoint load occurred without PyTorch.
+
+Published `src/evaluation/plots.py` and synthetic tests at
+`cdc9bc09bf1f98ca1c5f3bc78372637ac655926d`. It reads existing metrics
+JSON, preserves the original raw plot, and writes separate raw-count,
+annotated row-normalized, and recall/F1 charts. A local test generated
+these three views from the attached counts in a temporary folder; it did
+not open the dataset or repeat inference. Published deterministic
+`select_disk_replay_rows` and tests at
+`e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9`; it accepts only a
+training view and returns 100 unique original positions per old class.
+
+New `notebooks/kaggle_review2_full_task1_training.ipynb` pins the second
+source SHA. It validates existing prepared arrays and the Task-1-only
+preprocessor, hashes inputs, initializes a fresh five-output model, trains
+all 6,347,232 old-class training rows with full old-class validation and
+durable epoch-boundary resume, verifies best reload, and saves a clean
+500-row replay buffer with transformed features and original IDs. After
+validation selection it calibrates a fifth-percentile threshold from Task 1
+validation only, then performs bounded old-class test and unseen Task 2 test
+inference with the **unexpanded** head. Task 2 rows never train Task 1,
+fit preprocessing, or set the threshold. The notebook is unexecuted;
+no Task 1 or full-data novelty metric is claimed.
+
+Verification: focused plot tests 3 passed; disk replay tests 2 passed.
+Full `python3 -m unittest discover -s tests -p 'test_*.py' -q`: 52 tests,
+47 passed, 5 skipped and zero failed. `python3 -m compileall -q src tests`,
+17-cell/8-code notebook JSON/code syntax/Markdown-stage/empty-output/pin
+checks, and `git diff --check` passed. Local PyTorch
+is unavailable, so CPU resume-equivalence and Kaggle GPU/data execution
+remain unverified here. Preserve the whole `/kaggle/working/full_task1_...`
+folder as a private Kaggle version/input. Return executed notebook,
+`final_manifest.json`, `training_manifest.json`, `history.json`,
+`run_config.json`, `run_environment.json`, `reload_verification.json`,
+`replay_manifest.json`, `task1_test_metrics.json`, `novelty.json`,
+`training_curves.png`, and three Task 1 class plots. Keep
+`replay_buffer.npz`, `best.pt`, and `latest.pt` privately for later Task 2
+and resumption. Next: inspect actual Task 1 outputs before designing the
+separate Task 2 continuation; do not infer results from the static model.

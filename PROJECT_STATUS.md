@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (full clean large-data training prepared)
+Last updated: 2026-10-03 (full clean result reviewed; full Task 1 prepared)
 
 ## Current state
 
@@ -17,15 +17,15 @@ published to `origin/feature/unified-novelty` with upstream tracking on
 
 The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
 replay-label mitigation, balanced replay-exposure, and held-out novelty
-comparisons have executed. None establishes production/full-dataset
-performance; full-row preparation and throughput benchmarking completed,
-but the full-data training notebook is unexecuted.
+comparisons have executed. Full-row preparation, throughput benchmarking,
+and a full-partition clean static baseline also completed. The static result
+is not deployment performance; full-data Task 1 has not run.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
 training sampler, and novelty-evaluation APIs are implemented. New disk-backed
-full-row preparation was exercised on Kaggle. Durable full-data training and
-streaming evaluation interfaces are prepared but not yet used for a full run.
+full-row preparation, durable training, and bounded static test evaluation
+were exercised on Kaggle. A fresh five-class full Task 1 run is prepared.
 
 ## What is confirmed
 
@@ -87,8 +87,8 @@ streaming evaluation interfaces are prepared but not yet used for a full run.
 - Clean task/replay and six replay-label/gate conditions have run, but Benign
   results remain weak and filtering did not consistently improve accuracy.
   Balanced exposure and held-out novelty evaluation ran on a bounded subset;
-  the full-data training run is pending and one-command integration remains
-  incomplete.
+  full-data continual Task 1/Task 2 training is pending and one-command
+  integration remains incomplete.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -144,18 +144,18 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run `notebooks/kaggle_review2_full_clean_training.ipynb` on Kaggle T4 with
-the already prepared folder (current `/kaggle/working` or attached input).
-Review its full clean training, validation-selected checkpoint, and one
-complete test evaluation before large-data continual/replay or poisoning
-comparisons. Preserve run checkpoints privately, outside Git.
+Run `notebooks/kaggle_review2_full_task1_training.ipynb` on Kaggle T4 with
+the existing prepared folder. Preserve its entire Task 1 output folder,
+including checkpoints and clean replay buffer, for a separate Task 2 run.
+Do not start Task 2 comparisons or tune against static test results here.
 
 ## Observed results
 
 Small smoke, clean balanced-subset, static poisoning, clean continual,
 replay-label mitigation, balanced replay exposure, and held-out confidence
-novelty results were observed on bounded data. Full-row preparation
-completed; large-data model training has not executed.
+novelty results were observed on bounded data. Full-row preparation and
+full clean static model training completed; full-data continual training
+has not executed.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -459,7 +459,8 @@ selection, and a single complete test evaluation afterward. Config is
 batch256, lr0.001, seed42, mixed precision off, max20 epochs, patience5.
 It saves config/environment/data hashes, epoch checkpoints/history,
 reload checks, curves, confusion matrix and metrics separately under
-`/kaggle/working`. It has no execution outputs or full-training results.
+`/kaggle/working`. At this notebook-preparation step, it had no execution
+outputs or full-training results; the subsequent run is recorded below.
 
 Local focused streaming metrics: 2 passed; resume/header suite: 1 passed,
 1 PyTorch-dependent resume-equivalence test skipped. Full `unittest` suite:
@@ -469,3 +470,47 @@ and the 2.1-GB prepared arrays are unavailable; the Kaggle notebook reruns
 the focused PyTorch check before training. Next work **after** inspecting the
 actual clean full-data result is separate continual/replay and poisoning
 comparison runs using the same prepared partitions.
+
+## 2026-10-03: observed full clean static result and full Task 1 preparation
+
+The untracked `data/full-train-v2/results/full_clean_20261003T045146_553311Z/`
+manifest, training manifest, history, metrics, reload record, environment,
+and plots were reviewed. They remain outside Git. A separately attached
+`data/full-train.ipynb` contains three `NameError` outputs and does not
+independently establish this successful run; the completed v2 result JSONs
+are the evidence reported here. The
+source was `91a26a1c13a563a7628e217f357dc27f73874784`, with the same
+prepared-input identity as the earlier preparation run. On Kaggle Tesla T4,
+Python 3.13.15 and PyTorch 2.11.0+cu128, the full static run completed
+19 epochs and selected epoch 14 by full validation loss. Measured training
+plus validation time was `104.2950168455` minutes. Full test accuracy was
+`0.9828620338090688`, macro-F1 `0.757755762638612`, balanced accuracy
+`0.7291289708762002`, and Benign FPR `0.00445669840657261` (4,804 of
+1,077,928 Benign test rows). Infiltration recall was `0.059108799550182736`
+and Webattack recall `0.12694877505567928`; 13,328 of 14,228 Infiltration
+and 384 of 449 Webattack test rows were predicted Benign. The raw-count
+plot is dominated by the majority class, so overall accuracy obscures
+important minority weakness. The supplied reload JSON reports identical
+bounded validation predictions and best weights; no independent local
+checkpoint load was performed because PyTorch is absent locally. The
+attached `.pt` files and prepared arrays were not committed.
+
+Published `src/evaluation/plots.py` reads saved test confusion counts and
+writes distinct raw-count, annotated row-normalized, and per-class recall/F1
+plots without retraining or test inference. The existing raw-count plot is
+preserved. `src/continual_learning/disk_replay.py` selects seeded,
+training-only unique replay positions without materializing full features.
+The new `notebooks/kaggle_review2_full_task1_training.ipynb` pins published
+source `e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9` and is **unexecuted**.
+It will train a fresh five-output model on all 6,347,232 Task 1 training
+rows using the verified continual-only fit state, full old-class validation,
+durable resume, and bounded old-class test/held-out Task 2 novelty evaluation.
+It will persist 100 unique old-class training exemplars per class for later
+Task 2 use. No Task 2 model training or new novelty result is claimed.
+
+Local synthetic plot tests: 3 passed; disk replay tests: 2 passed. Full
+`python3 -m unittest discover -s tests -p 'test_*.py' -q`: 52 tests,
+47 passed, 5 skipped (PyTorch-dependent or opt-in real data), zero failed.
+`python3 -m compileall -q src tests`, 17-cell/8-code-cell notebook JSON,
+syntax/Markdown/empty-output/source-pin checks, and `git diff --check`
+passed. GPU training remains unavailable locally.

@@ -8,8 +8,9 @@ known-class classification metrics, clean two-task/replay preparation, and a
 simple frozen-teacher replay-label gate are implemented. Kaggle T4 smoke,
 clean-baseline, static poisoning, clean continual, replay-label mitigation,
 balanced replay exposure, and held-out confidence novelty comparisons ran
-on bounded subsets. Full-row preparation and subset throughput measurement
-ran on Kaggle; full-data model training has not run;
+on bounded subsets. Full-row preparation, subset throughput measurement,
+and a full clean static eight-class run completed on Kaggle. The
+five-class full Task 1 foundation is prepared but has not run;
 the one-command pipeline remains incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
@@ -84,6 +85,21 @@ from bounded test batches and derives accuracy, macro-F1, balanced accuracy,
 per-class precision/recall/F1/support, and Benign FPR. It retains no full
 prediction vector. The full clean notebook opens the test partition only
 after training has finished and the best checkpoint is fixed.
+
+`src/evaluation/plots.py` reads **saved confusion counts**, not model weights
+or test rows. It writes separate raw-count, annotated row-normalized, and
+per-class recall/F1 PNGs. Rows in the normalized heatmap divide by each
+true class's support; zero-support rows are shown as zeros. It never
+overwrites an existing output. The static full-data raw-count plot remains
+preserved, while these derived views expose minority-class weakness.
+
+`src/continual_learning/disk_replay.py` adds `select_disk_replay_rows` for
+the full-row path. It accepts only a training-partition disk view and returns
+seeded unique original row positions, 100 per requested old class by default.
+It does not materialize the full feature store; the caller uses
+`DiskBackedFlowDataset.batch` on 500 selected positions and persists
+frozen transformed replay features, labels, and original IDs. This does not
+run Task 2 or consume replay in Task 1 training.
 
 ## Model contract
 
