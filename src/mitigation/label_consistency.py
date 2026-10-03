@@ -89,10 +89,27 @@ def calibrate_label_consistency(
 ) -> LabelConsistencyCalibration:
     """Freeze a linear-interpolation quantile from clean old-class validation."""
 
-    normalized_quantile = _unit_scalar(quantile, "quantile")
     scores = label_inconsistency_scores(
         clean_validation_probabilities, clean_validation_labels, class_ids
     )
+    return calibrate_label_consistency_scores(scores, quantile=quantile)
+
+
+def calibrate_label_consistency_scores(
+    clean_validation_scores: np.ndarray, *, quantile: float = 0.95,
+) -> LabelConsistencyCalibration:
+    """Calibrate from bounded-batch scores retained for clean old validation.
+
+    This accepts only scalar inconsistency scores, not future-class examples
+    or simulator poison masks. The caller must establish the fit scope.
+    """
+
+    normalized_quantile = _unit_scalar(quantile, "quantile")
+    scores = np.asarray(clean_validation_scores)
+    if (scores.ndim != 1 or not np.issubdtype(scores.dtype, np.number) or
+            np.iscomplexobj(scores) or not np.isfinite(scores).all() or
+            np.any((scores < 0) | (scores > 1))):
+        raise ValueError("clean validation scores must be finite values in [0, 1]")
     if scores.size == 0:
         raise ValueError("clean Task 1 validation must contain at least one row")
     return LabelConsistencyCalibration(

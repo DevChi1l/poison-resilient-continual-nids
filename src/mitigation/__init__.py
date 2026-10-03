@@ -5,10 +5,12 @@ from .label_consistency import (
     LabelConsistencyCalibration,
     apply_label_consistency_gate,
     calibrate_label_consistency,
+    calibrate_label_consistency_scores,
     label_inconsistency_scores,
 )
 
 __all__ = [
     "GateResult", "LabelConsistencyCalibration", "apply_label_consistency_gate",
-    "calibrate_label_consistency", "label_inconsistency_scores",
+    "calibrate_label_consistency", "calibrate_label_consistency_scores",
+    "label_inconsistency_scores",
 ]

@@ -101,6 +101,30 @@ It does not materialize the full feature store; the caller uses
 frozen transformed replay features, labels, and original IDs. This does not
 run Task 2 or consume replay in Task 1 training.
 
+For the later full-row Task 2 comparison, `src/training/task2_replay.py`
+exposes `Task2ReplayView(task2_view, replay_features, supplied_labels,
+replay_original_ids, draws_per_epoch=70576)`. The new-class training rows
+remain disk-backed and are transformed once on demand; the frozen old replay
+features are already transformed and are copied into bounded batches without
+another preprocessing pass. Every epoch samples uniformly across present
+supplied classes, then uniformly within class, with replacement and a seed
+that advances by epoch. All conditions use exactly 70,576 draws regardless
+of filtering; stored replay still has at most 500 rows. The view reports
+actual class draws and unique replay examples. The existing durable trainer
+records this optional exposure report per epoch without changing its
+ordinary disk-view path or checkpoint/resume contract.
+
+For full clean seen-class validation, the teacher's old-class validation
+probabilities are scored batchwise via `label_inconsistency_scores`; the
+backward-compatible `calibrate_label_consistency_scores` accepts only the
+resulting one-dimensional clean scores and returns the same 95th-percentile
+threshold as the original matrix API. This avoids retaining a full
+validation-probability matrix. The gate still sees supplied labels only;
+clean originals and simulator changed IDs go to a separate audit. A pure
+`summarize_task2_counts` combines bounded old/new confusion matrices,
+keeps fixed old-class F1 and signed forgetting, and counts predictions into
+new classes as old-class errors.
+
 ## Model contract
 
 `src/models/` will provide a classifier with:

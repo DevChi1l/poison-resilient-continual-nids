@@ -8,6 +8,7 @@ from src.evaluation import replay_gate_metrics
 from src.mitigation import (
     apply_label_consistency_gate,
     calibrate_label_consistency,
+    calibrate_label_consistency_scores,
     label_inconsistency_scores,
 )
 from src.poisoning import apply_label_flip
@@ -36,6 +37,20 @@ class LabelConsistencyTests(unittest.TestCase):
                 calibrate_label_consistency(probabilities, labels, [7, 9], quantile=quantile)
         with self.assertRaises(ValueError):
             calibrate_label_consistency(np.empty((0, 2)), np.empty(0, dtype=int), [7, 9])
+
+    def test_bounded_score_calibration_matches_probability_api(self):
+        probabilities = np.array([[0.9, 0.1], [0.8, 0.2], [0.7, 0.3], [0.6, 0.4]])
+        labels = np.full(4, 7, dtype=np.int64)
+        scores = label_inconsistency_scores(probabilities, labels, [7, 9])
+        before = scores.copy()
+        expected = calibrate_label_consistency(probabilities, labels, [7, 9])
+        actual = calibrate_label_consistency_scores(scores)
+        self.assertEqual(actual, expected)
+        np.testing.assert_array_equal(scores, before)
+        for invalid in (np.empty(0), np.array([np.nan]), np.array([1.1]),
+                        np.array([[0.5]])):
+            with self.subTest(invalid=invalid), self.assertRaises(ValueError):
+                calibrate_label_consistency_scores(invalid)
 
     def test_gate_decision_equality_copies_and_empty_replay(self):
         features = np.arange(6, dtype=np.float32).reshape(3, 2)

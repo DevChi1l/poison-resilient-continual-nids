@@ -249,14 +249,20 @@ def train_full_disk_backed(
         history["optimizer_steps"] += steps
         history["training_rows_processed"] += actual_rows
         history["validation_rows_processed"] += validation_rows
-        history["epochs"].append({
+        epoch_record = {
             "epoch": epoch + 1, "train_loss": loss_sum / actual_rows,
             "validation_loss": val_loss, "validation_accuracy": val_correct / validation_rows,
             "train_rows": actual_rows, "validation_rows": validation_rows,
             "optimizer_steps": steps, "cumulative_optimizer_steps": history["optimizer_steps"],
             "train_seconds": train_seconds, "validation_seconds": validation_seconds,
             "best_epoch_so_far": best_epoch, "stale_epochs": stale,
-        })
+        }
+        exposure = getattr(train, "last_epoch_exposure", None)
+        if exposure is not None:
+            if exposure.get("draws") != actual_rows or exposure.get("epoch") != epoch + 1:
+                raise ValueError("Training exposure report does not match completed epoch")
+            epoch_record["sampling_exposure"] = exposure
+        history["epochs"].append(epoch_record)
         completed = epoch + 1
         early_stopped = (model.config.early_stopping_patience is not None and
                          stale >= model.config.early_stopping_patience)
