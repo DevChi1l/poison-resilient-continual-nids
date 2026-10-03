@@ -1,0 +1,605 @@
+{
+  "schema_version": 1,
+  "evidence_base_sha": "3cd90ac217c0842766b5849e2fc343a9a3d2c71f",
+  "as_of": "2026-10-03",
+  "theme": {
+    "font": "Aptos",
+    "navy": "#142D3B",
+    "teal": "#006D77",
+    "ink": "#16313E",
+    "muted": "#566773",
+    "paper": "#F6F8F8",
+    "rust": "#A4442D"
+  },
+  "slides": [
+    {
+      "layout": "cover",
+      "title": "Poison-resilient\ncontinual NIDS",
+      "status": "FACULTY REVIEW · 03 OCT 2026",
+      "subtitle": "A tabular Transformer research prototype",
+      "question": "Can a model learn new attack classes, retain prior knowledge and tolerate corrupted update labels?",
+      "objectives": [
+        "Classify eight flow categories",
+        "Measure retention and poisoning effects",
+        "Evaluate a held-out novelty baseline"
+      ],
+      "footer": "Bounded experiments completed. Full clean training in progress.",
+      "notes": "Research objective, not an achieved robustness claim. NIDS means Network Intrusion Detection System. The prototype combines a custom tabular Transformer, two-task class expansion, replay, label corruption, a frozen-teacher gate and confidence novelty. All objectives are evaluated separately. No pretrained model, deployment readiness or literature superiority is claimed. Current run status comes from the user, not a completed test artifact.",
+      "sources": [
+        "PROJECT_CONTEXT.md",
+        "ARCHITECTURE.md",
+        "User update, 2026-10-03"
+      ]
+    },
+    {
+      "layout": "mapping",
+      "title": "Dataset and eight-class target",
+      "status": "IMPLEMENTED · AUDITED COLLECTION",
+      "lead": "9,167,581 flow rows",
+      "sub": "57 numeric inputs → 54 retained features\n33 fine labels → 8 broad ClassLabel categories",
+      "headers": [
+        "ID",
+        "Class",
+        "Task"
+      ],
+      "rows": [
+        [
+          "0",
+          "Benign",
+          "Task 1"
+        ],
+        [
+          "1",
+          "DDoS",
+          "Task 1"
+        ],
+        [
+          "2",
+          "DoS",
+          "Task 1"
+        ],
+        [
+          "3",
+          "Botnet",
+          "Task 1"
+        ],
+        [
+          "4",
+          "Bruteforce",
+          "Task 1"
+        ],
+        [
+          "5",
+          "Infiltration",
+          "Task 2"
+        ],
+        [
+          "6",
+          "Webattack",
+          "Task 2"
+        ],
+        [
+          "7",
+          "Portscan",
+          "Task 2"
+        ]
+      ],
+      "callout": "Combined flow collection\nPer-row source provenance is unavailable.",
+      "notes": "The local Parquet has 59 columns: 57 numeric features plus Label and ClassLabel. Both targets are excluded from features. The audited policy excludes Fwd Header Length, Bwd Header Length and Fwd Seg Size Min, leaving 54. Stable global IDs must match model probability columns. Do not attribute this collection to a particular CIC year without provenance. Counts and mapping are supported by the actual split_manifest.json inspected for this presentation and the repository audit.",
+      "sources": [
+        "data/metadata/combined_flow_collection_audit.md",
+        "docs/preprocessing.md",
+        "src/data/sampling.py",
+        "Library: split_manifest.json, libfile_13bb368762dc819189be4379b7776490"
+      ]
+    },
+    {
+      "layout": "protocol",
+      "title": "Train-only preprocessing and split protocol",
+      "status": "IMPLEMENTED · EXECUTED ON BOUNDED DATA",
+      "steps": [
+        [
+          "Split first",
+          "Stratified 70 / 15 / 15\nSeed 42, original row IDs"
+        ],
+        [
+          "Fit on training",
+          "Invalid values → missing\nMedian fill, standardize"
+        ],
+        [
+          "Freeze transform",
+          "Same feature order\nValidation and test unchanged"
+        ]
+      ],
+      "leftTitle": "Static classification",
+      "left": "Fit using all eight training classes.\nBounded sample: 2,000 rows per class.\n11,200 / 2,400 / 2,400 split rows.",
+      "rightTitle": "Continual learning",
+      "right": "Fit using Task 1 training classes only.\nTask 2 never fits preprocessing.\nReplay contains Task 1 training rows only.",
+      "callout": "Row-level stratification does not rule out duplicate-flow or capture-session leakage.",
+      "notes": "Negative and non-finite values become missing. Small-array preprocessing uses training medians, then training population means and scales after imputation. The full-data route approximates medians from a seeded 200,000-row reservoir, separately for static and continual scopes. Validation selects models or thresholds. Test is held for evaluation. Splits preserve row identity and exclude validation/test IDs from replay. Source provenance is absent, so a row split is not evidence of session isolation.",
+      "sources": [
+        "src/data/preprocessing.py",
+        "src/data/splitting.py",
+        "src/continual_learning/tasks.py",
+        "ARCHITECTURE.md"
+      ]
+    },
+    {
+      "layout": "model",
+      "title": "Custom tabular Transformer",
+      "status": "IMPLEMENTED · TRAINED FROM SCRATCH",
+      "steps": [
+        [
+          "54 feature values",
+          "Numeric input per flow"
+        ],
+        [
+          "Learned tokens",
+          "Affine feature map\n+ CLS + position"
+        ],
+        [
+          "Encoder",
+          "Hidden 64, 4 heads\n2 layers, MLP 128"
+        ],
+        [
+          "Output head",
+          "CLS representation\n5 or 8 class logits"
+        ]
+      ],
+      "leftTitle": "Training configuration",
+      "left": "Cross-entropy with AdamW\nLearning rate 0.001, dropout 0.1\nValidation-loss checkpoint selection",
+      "rightTitle": "Output contract",
+      "right": "predict_proba columns follow class_ids\nExpandable output head for new classes\nSaved models support reload checks",
+      "callout": "This is a compact custom architecture. All model weights begin with fresh initialization.",
+      "notes": "The implementation tokenizes each scalar x_j as x_j*w_j+b_j, adds a learned CLS token and learned position embeddings, runs pre-norm Transformer encoder layers with GELU, then classifies the CLS representation through LayerNorm, dropout and a linear head. The compact run configuration is hidden64, four heads, two layers, MLP128. These are experiment overrides, not the larger ModelConfig defaults. Full clean training uses batch256, weight_decay 0.0001, seed42, mixed precision off, maximum20 epochs, patience5. The model is not pretrained.",
+      "sources": [
+        "src/models/tabular_transformer.py",
+        "notebooks/kaggle_review2_full_clean_training.ipynb",
+        "HANDOFF.md: full clean static large-data run prepared"
+      ]
+    },
+    {
+      "layout": "baseline",
+      "title": "Static baseline: strong average, weak Benign recall",
+      "status": "VERIFIED EXECUTION · BALANCED SUBSET",
+      "metrics": [
+        [
+          "88.33%",
+          "Test accuracy"
+        ],
+        [
+          "0.8780",
+          "Macro-F1"
+        ],
+        [
+          "56.0%",
+          "Benign false-positive rate"
+        ]
+      ],
+      "leftTitle": "Controlled baseline",
+      "left": "16,000 sampled rows, eight classes\n2,400 test rows, 300 per class\n20 epochs, best validation epoch 17",
+      "rightTitle": "Benign error burden",
+      "right": "168 of 300 Benign flows called attacks\n138 of those called Infiltration\nBenign recall: 44.0%",
+      "callout": "Aggregate accuracy does not establish reliable normal-traffic handling.",
+      "notes": "Actual metrics (1).json inspected in this session reports accuracy 0.8833333333333333, macro-F1 0.878016638838182 and a Benign confusion row [132,4,9,1,0,138,6,10]. Thus false positives are 300-132=168, FPR=0.56 and recall=0.44. Best epoch17 and matched checkpoint reload are documented in the walkthrough. These are single-seed balanced-subset results, not natural-distribution full-data metrics. Source run 68135601a3ddd95832c57bb602f210f1a0e18a43.",
+      "sources": [
+        "Library: metrics (1).json, libfile_7731a5816a288191a433e90db3e6b75c",
+        "docs/IMPLEMENTATION_WALKTHROUGH.md: observed clean baseline"
+      ]
+    },
+    {
+      "layout": "continual",
+      "title": "Continual expansion and replay",
+      "status": "IMPLEMENTED · BOUNDED COMPARISON EXECUTED",
+      "steps": [
+        [
+          "Task 1",
+          "IDs 0–4\nFive-output model"
+        ],
+        [
+          "Same saved model",
+          "Independent reloads\nExpand head to IDs 0–7"
+        ],
+        [
+          "Task 2 arms",
+          "New classes only\nor new classes + replay"
+        ]
+      ],
+      "headers": [
+        "After Task 2",
+        "Old accuracy",
+        "New accuracy",
+        "Combined"
+      ],
+      "rows": [
+        [
+          "Sequential",
+          "0.0%",
+          "93.78%",
+          "35.17%"
+        ],
+        [
+          "Replay, shuffled draws",
+          "68.27%",
+          "94.33%",
+          "78.04%"
+        ]
+      ],
+      "callout": "Memory: 500 unique old training rows, 100 per class. Old accuracy before Task 2: 96.87%.",
+      "notes": "Task1 includes Benign, DDoS, DoS, Botnet and Bruteforce. Task2 adds Infiltration, Webattack and Portscan. Expanded arms reload the same Task1 checkpoint and use the same expansion seed. A balanced stored memory means equal unique examples per old class; it does not mean balanced training draws. Sequential/replay used264/444 optimizer steps and8/12 epochs, so comparison is unequal-compute. Signed accuracy forgetting equals old accuracy before minus after on identical old test rows, with predictions into new classes counted as errors. Replay forgetting=28.60 percentage points. This initial continual result is supported by the repository audit record; the replay values also match the supplied test_summary.json. No new training was executed for this presentation.",
+      "sources": [
+        "ARCHITECTURE.md: clean continual-learning contract",
+        "docs/IMPLEMENTATION_WALKTHROUGH.md: observed clean continual result",
+        "Library: test_summary.json, libfile_c9db4c3962088191916f0beb89925a25"
+      ]
+    },
+    {
+      "layout": "poison",
+      "title": "Label poisoning uses explicit budgets",
+      "status": "VERIFIED EXECUTION · STATIC BALANCED SUBSET",
+      "leftTitle": "Random label flips",
+      "left": "Budget denominator: all training rows\nChoose a different allowed label\n20% = 2,240 / 11,200 rows",
+      "rightTitle": "Targeted attack-to-Benign flips",
+      "right": "Denominator: eligible attack rows\nTarget class: Benign (ID 0)\n20% = 1,960 / 9,800 eligible rows\nEquivalent to 17.5% of all training rows",
+      "headers": [
+        "Static condition",
+        "Test accuracy",
+        "Macro-F1",
+        "Attack → Benign"
+      ],
+      "rows": [
+        [
+          "Clean control",
+          "88.33%",
+          "0.8780",
+          "2.52%"
+        ],
+        [
+          "Random 20%",
+          "87.00%",
+          "0.8590",
+          "1.48%"
+        ],
+        [
+          "Targeted 20%",
+          "85.33%",
+          "0.8515",
+          "6.57%"
+        ]
+      ],
+      "callout": "Sweep: 0%, 5%, 10%, 20%. Effects were not monotonic across all metrics.",
+      "notes": "Training labels only are corrupted, features and clean validation/test labels stay fixed. Count=floor(rate*eligible_count+0.5), sampling without replacement. Random selects a different label from all eight classes. Targeted sources are attack IDs1–7, target0. Actual comparison.json inspected: random20 changed2240, targeted20 changed1960. Attack-to-Benign rate is measured on true attack test rows; its clean baseline is nonzero. Random10 accuracy0.88375 and targeted10 macro-F1 0.881780487 exceeded the corresponding clean value slightly, so poisoning does not uniformly worsen every metric. Same initial weights and seven reload checks are documented. Single seed and balanced data limit inference.",
+      "sources": [
+        "Library: comparison.json, libfile_4789f80dd2a08191a306e71cc91abe5f",
+        "src/poisoning/label_flip.py",
+        "docs/POISONING_EXPERIMENTS.md"
+      ]
+    },
+    {
+      "layout": "mitigation",
+      "title": "Frozen-teacher filtering has mixed outcomes",
+      "status": "VERIFIED EXECUTION · REPLAY LABEL POISONING",
+      "steps": [
+        [
+          "Frozen Task 1 teacher",
+          "Score = 1 − P(supplied label)"
+        ],
+        [
+          "Validation calibration",
+          "95th percentile of clean scores"
+        ],
+        [
+          "Old replay only",
+          "Quarantine scores above cutoff"
+        ]
+      ],
+      "headers": [
+        "Replay condition",
+        "Unfiltered accuracy",
+        "Filtered accuracy"
+      ],
+      "rows": [
+        [
+          "Clean",
+          "78.04%",
+          "81.38%"
+        ],
+        [
+          "Random 20% (100/500)",
+          "81.63%",
+          "78.58%"
+        ],
+        [
+          "Targeted 20% (80/400)",
+          "81.63%",
+          "82.79%"
+        ]
+      ],
+      "callout": "All simulated poison labels rejected, but random-poison accuracy fell. Benign FPR remained 90.0–95.3%.",
+      "notes": "Frozen teacher is the clean five-class Task1 model trained from scratch. It filters old-class replay only, never new Task2 examples. Simulator truth is used afterward for audit, never for filtering or repairing labels. Random20 budget100/500 replay rows. Targeted20 budget80/400 eligible old attack rows,16% of total replay. Clean false rejection was4.4%; random4.75%; targeted4.2857%. Actual comparison(1).json was inspected. Combined test accuracy pairs are .7804167/.81375, .81625/.7858333, .81625/.8279167. Optimizer steps differ: clean444/444, random370/648, targeted444/504, so rejection and accuracy effects cannot be isolated from training work and changed memory size. This is a narrow label-consistency baseline, not a general poisoning/backdoor defense.",
+      "sources": [
+        "Library: comparison(1).json, libfile_b104d53f0138819188e1c7f1c438afc0",
+        "src/mitigation/label_consistency.py",
+        "ARCHITECTURE.md: replay-label consistency gate"
+      ]
+    },
+    {
+      "layout": "replay",
+      "title": "Balanced draws improve retention with tradeoffs",
+      "status": "VERIFIED EXECUTION · CLEAN REPLAY EXPOSURE",
+      "headers": [
+        "Held-out test metric",
+        "Shuffled draws",
+        "Balanced draws"
+      ],
+      "rows": [
+        [
+          "Old-class accuracy",
+          "68.27%",
+          "83.53%"
+        ],
+        [
+          "New-class accuracy",
+          "94.33%",
+          "87.67%"
+        ],
+        [
+          "Combined accuracy",
+          "78.04%",
+          "85.08%"
+        ],
+        [
+          "Accuracy forgetting",
+          "28.60 pp",
+          "13.33 pp"
+        ],
+        [
+          "Benign FPR",
+          "93.67%",
+          "61.67%"
+        ]
+      ],
+      "callout": "Same 500 unique replay rows. Validation selected balanced draws. Training work differed: 444 vs 370 steps.",
+      "notes": "Actual test_summary.json and strategy_selection.json inspected. Balanced inverse-frequency sampling uses replacement and one draw per combined row per epoch. Buffer size is unchanged; repeated exposure changes. Clean validation macro-F1 selected balanced:0.8529213667 vs0.7541214312, with no test or novelty data used for selection. Old test1500 rows, new test900, combined2400. Forgetting is before-minus-after old accuracy in percentage points; smaller is better here. This helps old retention but reduces new-class accuracy and still misclassifies61.67% of Benign examples. One seed, one balanced subset and unequal optimizer work preclude broad claims.",
+      "sources": [
+        "Library: test_summary.json, libfile_c9db4c3962088191916f0beb89925a25",
+        "Library: strategy_selection.json, libfile_00ae204667208191a4c80308d92061e5",
+        "docs/IMPLEMENTATION_WALKTHROUGH.md: observed replay/novelty tradeoff"
+      ]
+    },
+    {
+      "layout": "novelty",
+      "title": "Held-out novelty recall remains weak",
+      "status": "VERIFIED EXECUTION · BEFORE HEAD EXPANSION",
+      "metrics": [
+        [
+          "18.89%",
+          "Unknown recall, 170 / 900"
+        ],
+        [
+          "4.53%",
+          "Known false rejection, 68 / 1,500"
+        ],
+        [
+          "71.43%",
+          "Unknown precision"
+        ]
+      ],
+      "leftTitle": "Protocol",
+      "left": "Task 1 classes known, Task 2 held out\nFlag unknown if max probability < 0.9248\nCutoff: fifth percentile of known validation",
+      "rightTitle": "Recall by held-out class",
+      "right": "Infiltration: 11.00%\nWebattack: 10.33%\nPortscan: 35.33%",
+      "callout": "730 of 900 unknown examples were missed. Many unseen flows still receive high confidence.",
+      "notes": "Actual novelty.json inspected. Threshold0.9247980117797852 calibrated on1500 known validation rows only using the fifth percentile, frozen before Task2 evaluation. Task1 known test has1500 rows, Task2 unknown test900 rows, each unknown class300. True unknown flagged170, false known rejected68, unknown missed730. Recall170/900=.1888889; precision170/(170+68)=.7142857. This evaluation occurs before the head expands and before Task2 learning. Known false rejection is a novelty metric, distinct from Benign classification FPR. Equality to the cutoff counts as known. This is genuine held-out-class evidence of a weak confidence baseline, not broad novelty robustness.",
+      "sources": [
+        "Library: novelty.json, libfile_eca6a60fca108191ae516c44adaec5e2",
+        "src/evaluation/novelty.py",
+        "ARCHITECTURE.md: novelty contract"
+      ]
+    },
+    {
+      "layout": "preparation",
+      "title": "Full-data preparation is complete",
+      "status": "VERIFIED PREPARATION · TRAINING IN PROGRESS",
+      "metrics": [
+        [
+          "6,417,308",
+          "Training rows"
+        ],
+        [
+          "1,375,139",
+          "Validation rows"
+        ],
+        [
+          "1,375,134",
+          "Test rows"
+        ]
+      ],
+      "leftTitle": "Bounded-memory data path",
+      "left": "54-feature float32 store on disk\nSeparate static and Task 1 fit states\n200,000-row median reservoir per scope",
+      "rightTitle": "Full clean run configuration",
+      "right": "All training rows, natural shuffled order\nBatch 256, at most 20 epochs, patience 5\nBest validation loss, then one full test pass",
+      "callout": "User-reported epoch 1 validation accuracy: 97.41%. Final test artifacts are still pending.",
+      "notes": "Actual split_manifest.json and benchmark_results.json inspected, plus the repository preparation audit. Split totals sum to9,167,581. Preparation used seed42. Static moments use6,417,308 train rows and continual moments6,347,232 Task1 train rows. Medians are approximate. Raw feature store1,980,197,624 bytes and total persisted output about2.146GB are documented; actual large arrays are not available here for byte-level audit. The100,000-row benchmark measured22,196.07 rows/s at batch256;433.68seconds is a1.5x-headroom projection excluding validation, not measured full training time. User says full clean training is running again and reports epoch1 validation accuracy0.9741. That is progress only, not independently verified final performance. No training was launched by this task.",
+      "sources": [
+        "Library: split_manifest.json, libfile_13bb368762dc819189be4379b7776490",
+        "Library: benchmark_results.json, libfile_2dc965b95efc8191a6d3196aef7f8aba",
+        "HANDOFF.md: full clean static large-data run prepared",
+        "User update, 2026-10-03"
+      ]
+    },
+    {
+      "layout": "slots",
+      "title": "Full-data learning and error analysis",
+      "status": "PENDING · FINAL CLEAN RUN ARTIFACTS",
+      "slot_ids": [
+        "learning_curves",
+        "confusion_matrix"
+      ],
+      "callout": "Populate only after the validation-selected checkpoint and complete test evaluation are available.",
+      "notes": "These are reserved result areas, not zero-valued results or simulated curves. Learning curves should include train/validation loss against epoch and clearly label validation accuracy if shown. Confusion matrix must show true classes as rows and predicted classes as columns, fixed global order0–7, and explicitly identify counts or row-normalized percentages. The completed run should provide history.json, test_metrics.json, training_curves.png, confusion_matrix.png, final_manifest.json and reload_verification.json. Check source SHA, input identity and checkpoint selection before updating. The content file controls paths and captions.",
+      "sources": [
+        "notebooks/kaggle_review2_full_clean_training.ipynb",
+        "User request: pending full-data result slots"
+      ]
+    },
+    {
+      "layout": "perclass",
+      "title": "Full-data per-class performance",
+      "status": "PENDING · FINAL CLEAN TEST METRICS",
+      "slot_ids": [
+        "per_class_metrics"
+      ],
+      "callout": "Report all eight classes with support, macro-F1, balanced accuracy and Benign FPR.",
+      "notes": "Reserved editable table for the full clean test result. Populate precision, recall, F1 and support for all eight global class IDs only after complete test evaluation of the validation-selected checkpoint. Macro-F1, balanced accuracy and Benign FPR must accompany class-level interpretation. No zero values stand in for missing results. The generator can import per_class from test_metrics.json through content.json. Per-class metrics belong to the full clean test evaluation and must preserve precision, recall, F1 and support for all8 classes plus macro-F1, balanced accuracy and Benign FPR. Continual forgetting and poisoning comparisons require separate future runs using the prepared partitions; they are not outputs of the running clean static model. Forgetting uses identical old test rows before/after Task2 and signed percentage-point differences. Poisoning comparisons must state denominator, changed/eligible/total rows, target class, seeds, compute and paired filtered/unfiltered metrics. No values or charts have been fabricated in these pending slots.",
+      "sources": [
+        "ARCHITECTURE.md: evaluation contract",
+        "HANDOFF.md: next action after full clean results",
+        "User request: pending full-data result slots"
+      ]
+    },
+    {
+      "layout": "slots",
+      "title": "Full-data continual and poisoning comparisons",
+      "status": "PENDING · SEPARATE FUTURE RUNS",
+      "slot_ids": [
+        "continual_forgetting",
+        "poisoning_comparisons"
+      ],
+      "callout": "These comparisons require separate runs after review of the clean full-data results.",
+      "notes": "Per-class metrics belong to the full clean test evaluation and must preserve precision, recall, F1 and support for all8 classes plus macro-F1, balanced accuracy and Benign FPR. Continual forgetting and poisoning comparisons require separate future runs using the prepared partitions; they are not outputs of the running clean static model. Forgetting uses identical old test rows before/after Task2 and signed percentage-point differences. Poisoning comparisons must state denominator, changed/eligible/total rows, target class, seeds, compute and paired filtered/unfiltered metrics. No values or charts have been fabricated in these pending slots.",
+      "sources": [
+        "ARCHITECTURE.md: evaluation contract",
+        "HANDOFF.md: next action after full clean results",
+        "User request: pending full-data result slots"
+      ]
+    },
+    {
+      "layout": "closing",
+      "title": "Limitations and local demo plan",
+      "status": "RESEARCH PROTOTYPE · PLANNED INTEGRATION",
+      "leftTitle": "Current limitations",
+      "left": "One seed and one bounded class split\nUnknown source provenance and leakage risk\nHigh Benign FPR, weak novelty recall\nMixed mitigation, unequal training work",
+      "rightTitle": "Planned local demonstration",
+      "right": "Load saved model and preprocessing\nRead a local flow file, show class probabilities\nFlag low confidence and display saved metrics\nKeep inference local with a reproducible command",
+      "callout": "Next evidence: finish clean full-data evaluation, then continual/replay and poisoning comparisons.",
+      "notes": "A local interface is planned, not implemented or built in this task. The one-command integration path is still incomplete. Proposed demo is offline inference on compatible precomputed flow features, with explicit feature order, saved preprocessing and class mapping. It should display confidence-baseline caveats and no deployment-readiness claim. Future priorities are verification of full clean test outputs, then separate full-data continual/replay and poisoning experiments; repeated seeds and provenance-aware splits would improve evidence. No team PDF, web interface or training job was created during presentation work.",
+      "sources": [
+        "PROJECT_STATUS.md: known blockers and limitations",
+        "REVIEW2_CHECKLIST.md",
+        "User scope, 2026-10-03"
+      ]
+    }
+  ],
+  "result_slots": {
+    "learning_curves": {
+      "title": "Learning curves",
+      "status": "PENDING",
+      "image_path": null,
+      "metrics_json_path": null,
+      "caption": "Train and validation loss across epochs",
+      "expected": "history.json + training_curves.png"
+    },
+    "confusion_matrix": {
+      "title": "Confusion matrix",
+      "status": "PENDING",
+      "image_path": null,
+      "metrics_json_path": null,
+      "caption": "True rows × predicted columns, classes 0–7",
+      "expected": "test_metrics.json + confusion_matrix.png"
+    },
+    "per_class_metrics": {
+      "title": "Per-class metrics",
+      "status": "PENDING",
+      "image_path": null,
+      "metrics_json_path": null,
+      "caption": "Precision, recall, F1 and support for all eight classes",
+      "expected": "test_metrics.json",
+      "table": {
+        "headers": [
+          "Class",
+          "Precision",
+          "Recall",
+          "F1",
+          "Support"
+        ],
+        "rows": [
+          [
+            "Benign",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "DDoS",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "DoS",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "Botnet",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "Bruteforce",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "Infiltration",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "Webattack",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ],
+          [
+            "Portscan",
+            "Pending",
+            "Pending",
+            "Pending",
+            "Pending"
+          ]
+        ]
+      }
+    },
+    "continual_forgetting": {
+      "title": "Continual forgetting",
+      "status": "PENDING",
+      "image_path": null,
+      "metrics_json_path": null,
+      "caption": "Old-class before minus after Task 2, in pp",
+      "expected": "Future continual summary + forgetting figure",
+      "table": null
+    },
+    "poisoning_comparisons": {
+      "title": "Poisoning comparisons",
+      "status": "PENDING",
+      "image_path": null,
+      "metrics_json_path": null,
+      "caption": "Explicit budgets, clean and paired defense arms",
+      "expected": "Future comparison JSON + labeled figure",
+      "table": null
+    }
+  }
+}

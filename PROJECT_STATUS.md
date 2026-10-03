@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (full clean large-data training prepared)
+Last updated: 2026-10-03 (faculty presentation prepared; full clean run in progress per user)
 
 ## Current state
 
@@ -19,13 +19,17 @@ The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
 replay-label mitigation, balanced replay-exposure, and held-out novelty
 comparisons have executed. None establishes production/full-dataset
 performance; full-row preparation and throughput benchmarking completed,
-but the full-data training notebook is unexecuted.
+and the user now reports the full clean training run is in progress again.
+Epoch 1 validation accuracy 0.9741 is user-reported progress only; final test
+artifacts are still unavailable. Earlier unexecuted statements below record
+the state at their historical handoffs.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
 training sampler, and novelty-evaluation APIs are implemented. New disk-backed
 full-row preparation was exercised on Kaggle. Durable full-data training and
-streaming evaluation interfaces are prepared but not yet used for a full run.
+streaming evaluation interfaces are implemented. Completed full-run test
+results have not yet been supplied.
 
 ## What is confirmed
 
@@ -469,3 +473,19 @@ and the 2.1-GB prepared arrays are unavailable; the Kaggle notebook reruns
 the focused PyTorch check before training. Next work **after** inspecting the
 actual clean full-data result is separate continual/replay and poisoning
 comparison runs using the same prepared partitions.
+
+## Faculty presentation prepared (2026-10-03)
+
+Presentation-only session on `docs/faculty-presentation`, based on verified
+local/remote unified HEAD `3cd90ac217c0842766b5849e2fc343a9a3d2c71f`.
+Created `presentations/faculty_review/`: editable 15-slide 16:9 PPTX,
+reproducible generator, centralized content JSON, overview preview and README.
+Speaker notes cite inspected evidence. Mixed mitigation, weak novelty recall,
+high Benign FPR and unequal-compute limitations remain explicit.
+
+Full clean training is running again according to the user; epoch 1 validation
+accuracy 0.9741 is not a final test result. Five pending slots cover learning
+curves, confusion matrix, all-class metrics, continual forgetting and poisoning
+comparisons. The latter two need separate future runs. No training, team PDF,
+web interface or main merge was performed. Presentation validation and next
+steps are recorded in the latest HANDOFF section.

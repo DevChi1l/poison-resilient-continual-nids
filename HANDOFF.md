@@ -794,3 +794,62 @@ notebook plus `final_manifest.json`, `training_manifest.json`, `history.json`,
 `test_metrics.json`, `training_curves.png`, `confusion_matrix.png`, and
 checkpoint metadata/files privately. Inspect clean full-data results before
 separate continual/replay and poisoning runs.
+
+---
+
+## 2026-10-03: faculty presentation completed while clean training runs
+
+Owner: unified team presentation/documentation session. Branch:
+`docs/faculty-presentation`, based on `feature/unified-novelty` at verified
+remote SHA `3cd90ac217c0842766b5849e2fc343a9a3d2c71f`. No checkout
+existed in this workspace, so a fresh clean branch checkout was created.
+Read AGENTS, context, workflow, architecture, status, checklist, latest
+handoffs and relevant walkthrough sections before authoring.
+
+Completed only the faculty presentation: `presentations/faculty_review/`
+contains `faculty_review.pptx` (15 editable 16:9 slides), `generate.mjs`,
+`content.json`, `README.md`, `preview.png` and a scoped `.gitignore` for
+private inputs/build files. A separate per-class slide preserves readability.
+Updated `PROJECT_STATUS.md` with current user-reported run state. No model,
+notebook, dataset, checkpoint, team PDF or local interface was created or
+changed. No training started and no merge to main occurred.
+
+Evidence: directly read actual supplied JSONs for clean metrics, static
+poisoning, mitigation, replay summary, validation strategy selection,
+held-out novelty, split manifest and benchmark. The initial sequential
+continual result and execution/reload details also use repository audit
+records. Each slide has speaker notes explaining evidence and caveats.
+Displayed findings preserve mixed mitigation, weak novelty recall and high
+Benign FPR. Single-seed, balanced-subset and unequal-compute limits are
+explicit. The model is custom and trained from scratch.
+
+The user reports that full clean training is running again, with epoch 1
+validation accuracy 0.9741. This is explicitly labeled progress only, not a
+final test result. No final full-data test artifact was supplied or inferred.
+
+Pending result slots (all controlled by `content.json`):
+- Slide 12: `learning_curves` and `confusion_matrix`.
+- Slide 13: `per_class_metrics`, all eight classes in an editable native table.
+- Slide 14: `continual_forgetting` and `poisoning_comparisons`.
+
+README gives exact paths and JSON schema for inserting future artifacts.
+The per-class slot can load the existing full-run test JSON schema directly;
+other slots embed reviewed PNGs and retain metrics path references. Continual
+and poisoning results require separate future runs after clean-result review.
+Keep raw run inputs and checkpoints private and outside Git.
+
+Validation: 15 slides and 15 notes parts, 16:9 size, six native tables,
+editable diagram/text objects; package integrity, geometry, font policy and
+Artifact Tool re-import passed without findings. All slides rendered, inspected
+at 1280x720, and an overlapping model-diagram title was shortened and rerendered.
+Final PPTX rendering confirmed the correction and pending-result labels.
+Microsoft PowerPoint itself was unavailable; no native-app compatibility test
+is claimed. No model tests were needed for this presentation-only change.
+`git diff --check` passed. Commit/push scope is the presentation directory and
+these two documentation files only, on the focused branch.
+
+Next: review faculty deck. When the clean run completes, inspect its manifests,
+history, test metrics, reload verification and figures, update the five slots
+only as their evidence becomes available, and regenerate to a new PPTX name.
+Do not replace missing values with zeros or infer robustness from validation
+accuracy. Preserve historical bounded results and their scope.
