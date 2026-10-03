@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Full clean result
-> reviewed; full Task 1 prepared.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Full Task 1
+> reviewed; full Task 2 targeted comparison prepared.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -885,3 +885,66 @@ failed. `python3 -m compileall -q src tests` and `git diff --check` passed.
 No local PyTorch/GPU Task 1 run was attempted. Next: run this revised
 notebook on Kaggle with the original prepared folder, preserve the whole
 Task 1 output directory, and review the actual results before Task 2.
+
+---
+
+## 2026-10-03: full Task 1 reviewed; full Task 2 targeted comparison prepared
+
+Owner: unified A+B+C, branch `feature/unified-novelty`. Fetched origin;
+local/remote began at `c5ea706a12738c5b00836c200376e311d5fb3487`.
+Preserved all untracked `data/` attachments and PPT/PDF work. No main merge,
+dataset/checkpoint commit, Task 1 retraining, or local Task 2 training.
+
+Reviewed supplied Task 1 final/training manifests, history, old-test metrics,
+novelty JSON, reload report, environment, replay manifest/buffer and plots.
+Recorded 12 completed epochs, best validation-loss epoch 9, measured
+train+validation `65.50660256425` minutes; old accuracy
+`0.9925734439413022`, macro-F1 `0.981162951652861`, Benign FPR
+`0.004171892742372403`. Held-out novelty recall was 691/15,015
+(`0.04602064602064602`); known false rejection 67,987/1,360,119.
+The replay file locally contains 500 unique original IDs, 100 labels per
+old class, 54 finite float32 features, matching manifest IDs; `best.pt`
+bytes match the reported SHA. No independent weight load or original-row
+split/preprocessing audit occurred locally without PyTorch/prepared arrays.
+
+Published source `5546e7a4165eea51ba89e912603b5387e9506703` adds
+`Task2ReplayView`, per-epoch sampler exposure in the durable trainer,
+one-dimensional clean-validation score calibration, and bounded-confusion
+old/new/combined and signed-forgetting summaries. Focused old/new balanced
+accuracy was published at `857dfbbcca2cfd6b33041ded51fbbae39b7a43f2`,
+which the new `notebooks/kaggle_review2_full_task2_targeted_mitigation.ipynb`
+pins. The existing small-array path is unchanged.
+Exactly three arms share an identical expanded Task 1 initialization and
+Task 2 clean training pool: clean replay, targeted20 unfiltered, and the
+same targeted20 replay after filtering. Targeted flips 80/400 eligible
+attack replay labels (16% of all 500) to Benign. The gate uses the frozen
+teacher and 95th-percentile clean Task 1 validation threshold; clean labels
+and changed IDs enter only the separate audit. Class-balanced draws are
+fixed at 70,576 per epoch for all arms; early stopping can cause different
+total steps. Full clean seen-class validation loss selects checkpoints;
+test is read only after selection. Separate folders persist per-arm
+latest/best/history, exposure, reload, metrics and plots for reuse/resume.
+This is experimental exclusion, not persistent review/release.
+
+Verification: focused Task 2 sampler tests 2 passed, focused count/forgetting
+tests 2 passed, and label-consistency tests 6 passed. Full
+`python3 -m unittest discover -s tests -p 'test_*.py' -q`: 57 tests,
+52 passed, 5 skipped (PyTorch or opt-in real data), zero failed.
+`python3 -m compileall -q src tests`, 15-cell/7-code-cell notebook
+JSON/Python syntax/Markdown/empty-output/source-pin checks, and
+`git diff --check` passed. PyTorch/GPU-dependent resume/evaluation and the
+full prepared arrays could not be run locally; the Kaggle notebook repeats
+focused tests and validates both attached inputs. No full Task 2 result
+exists yet.
+
+Next: on Kaggle T4 attach the whole prepared folder and the completed Task 1
+folder, set `PREPARED_DIR` and `TASK1_RUN_DIR`, run top to bottom, and save
+the **entire** `/kaggle/working/full_task2_targeted_...` folder as a private
+version. Return executed notebook; root `protocol.json`, `environment.json`,
+`calibration.json`, `attack_audit.json`, `gate_audit.json`, `comparison.json`,
+`forgetting_per_class_comparison.png`; and for each of the three arm folders,
+`arm_config.json`, `arm_summary.json`, `history.json`, `training_manifest.json`,
+`reload_verification.json`, `metrics.json`, `combined_test_metrics.json`, and
+confusion/class plots. Keep all `latest.pt`/`best.pt` and
+`attacked_replay_labels.npz` privately for audit/resume. Review actual
+results before any broader mitigation or attack changes.

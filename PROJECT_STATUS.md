@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (full Task 1 pre-run epoch cap set to 12)
+Last updated: 2026-10-03 (full Task 1 reviewed; full Task 2 comparison prepared)
 
 ## Current state
 
@@ -19,13 +19,15 @@ The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
 replay-label mitigation, balanced replay-exposure, and held-out novelty
 comparisons have executed. Full-row preparation, throughput benchmarking,
 and a full-partition clean static baseline also completed. The static result
-is not deployment performance; full-data Task 1 has not run.
+is not deployment performance. Full-data five-class Task 1 completed; the
+full-data Task 2 comparison has not run.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
 training sampler, and novelty-evaluation APIs are implemented. New disk-backed
 full-row preparation, durable training, and bounded static test evaluation
-were exercised on Kaggle. A fresh five-class full Task 1 run is prepared.
+were exercised on Kaggle. The fresh five-class full Task 1 run completed;
+a three-condition full Task 2 replay-label comparison is prepared.
 
 ## What is confirmed
 
@@ -87,7 +89,7 @@ were exercised on Kaggle. A fresh five-class full Task 1 run is prepared.
 - Clean task/replay and six replay-label/gate conditions have run, but Benign
   results remain weak and filtering did not consistently improve accuracy.
   Balanced exposure and held-out novelty evaluation ran on a bounded subset;
-  full-data continual Task 1/Task 2 training is pending and one-command
+  full-data Task 2 training is pending and one-command
   integration remains incomplete.
 
 ## Kaggle notebook preparation verification on 2026-10-02
@@ -144,18 +146,18 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run `notebooks/kaggle_review2_full_task1_training.ipynb` on Kaggle T4 with
-the existing prepared folder. Preserve its entire Task 1 output folder,
-including checkpoints and clean replay buffer, for a separate Task 2 run.
-Do not start Task 2 comparisons or tune against static test results here.
+Run `notebooks/kaggle_review2_full_task2_targeted_mitigation.ipynb` on
+Kaggle T4 with the existing prepared folder and entire completed Task 1
+output folder. Review all three conditions before extending the threat
+model; do not tune from the previously observed test metrics.
 
 ## Observed results
 
 Small smoke, clean balanced-subset, static poisoning, clean continual,
 replay-label mitigation, balanced replay exposure, and held-out confidence
 novelty results were observed on bounded data. Full-row preparation and
-full clean static model training completed; full-data continual training
-has not executed.
+full clean static model training and five-class Task 1 completed. The
+three-condition full-data Task 2 experiment has not executed.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -524,3 +526,60 @@ Local synthetic plot tests: 3 passed; disk replay tests: 2 passed. Full
 `python3 -m compileall -q src tests`, 17-cell/8-code-cell notebook JSON,
 syntax/Markdown/empty-output/source-pin checks, and `git diff --check`
 passed. GPU training remains unavailable locally.
+
+## 2026-10-03: observed full Task 1 and prepared three-arm full Task 2
+
+Fetched origin; local/remote unified branch initially matched
+`c5ea706a12738c5b00836c200376e311d5fb3487`. Reviewed the attached
+`data/full-run-task_01/results/full_task1_20261003T074354_763068Z/`
+final/training manifests, history, environment, reload JSON, old-test
+metrics, novelty metrics, replay manifest/buffer, and plots. The supplied
+unexecuted notebook snapshot is not independent run evidence. Its recorded
+source was `e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9` on Kaggle Tesla
+T4/Python 3.13.15/PyTorch 2.11.0+cu128. Full Task 1 used 6,347,232
+old-class training rows, completed 12 epochs, selected validation-loss
+epoch 9, and measured `65.50660256425` minutes of training plus validation.
+On 1,360,119 old-class test rows, accuracy was `0.9925734439413022`,
+macro-F1 `0.981162951652861`, balanced accuracy `0.9784715590433037`,
+and Benign FPR `0.004171892742372403` (4,497/1,077,928).
+
+The recorded held-out confidence threshold was the fifth percentile of
+clean Task 1 validation maximum probabilities. It flagged only 691 of
+15,015 unseen Task 2 test rows: unknown recall `0.04602064602064602`.
+It falsely rejected 67,987 of 1,360,119 known test rows (rate
+`0.04998606739557348`). This is weak novelty performance under this fixed
+protocol, not a successful unknown-attack detector. The supplied replay
+manifest reports 500 unique old training IDs, 100 per class. Locally, the
+attached replay `.npz` independently matched its manifest IDs, shape,
+labels/counts and finite float32 features; the attached `best.pt` byte hash
+matched the reload report. PyTorch is absent locally, and the prepared
+arrays were not attached, so we did **not** independently load weights or
+verify replay rows against split codes/raw preprocessing here. The Task 2
+notebook performs those checks against both full inputs on Kaggle.
+
+Published backward-compatible source for a bounded Task 2 plus replay
+sampler, optional per-epoch exposure in durable history, batched-score
+consistency calibration, and count-based focused metrics at
+`5546e7a4165eea51ba89e912603b5387e9506703`. New
+focused old/new balanced-accuracy reporting was published at
+`857dfbbcca2cfd6b33041ded51fbbae39b7a43f2`; the new
+`notebooks/kaggle_review2_full_task2_targeted_mitigation.ipynb` pins this
+latter source. It prepares exactly clean replay, targeted20 unfiltered, and the
+**same** targeted20 buffer filtered. Targeted budget is 80/400 eligible
+old-attack replay labels changed to Benign, or 16% of all 500 replay rows.
+The frozen Task 1 teacher's 95th-percentile clean-validation gate applies
+only to replay; simulator truth is reserved for separate audit. Each arm
+draws 70,576 class-balanced examples per epoch from the same 70,076 clean
+Task 2 training-row pool plus its replay pool. The full clean seen-class
+validation loss selects each checkpoint; test metrics are later. Separate
+arm folders hold durable latest/best/history, exposure, metrics and plots.
+The notebook is **unexecuted**; no full Task 2 outcome is claimed.
+
+Focused synthetic tests: Task 2 replay 2 passed, continual count metrics
+2 passed, label consistency 6 passed. Full
+`python3 -m unittest discover -s tests -p 'test_*.py' -q`: 57 tests,
+52 passed, 5 skipped (local PyTorch or opt-in real data), zero failed.
+`python3 -m compileall -q src tests`, notebook JSON/7-code-cell Python
+syntax/15-cell Markdown/empty-output/source-pin checks, and
+`git diff --check` passed. Local PyTorch/GPU and full prepared arrays are
+absent, so GPU/data execution is not claimed.

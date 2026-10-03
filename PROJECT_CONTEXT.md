@@ -47,7 +47,8 @@ Synthetic data may be used only for a component smoke test and must never be pre
   deployment/full-data result. The held-out confidence baseline had low
   unknown recall. Full-row preparation and a full clean static model run
   completed; the static result has weak minority-class recall and is not
-  deployment evidence. Full-data continual Task 1/Task 2 has not run.
+  deployment evidence. Full-data Task 1 ran; full-data Task 2 remains
+  unexecuted and the confidence novelty baseline had low held-out recall.
 
 Dependency selection is pending. The first implementation owner must use versions compatible with the active Python runtime and record them in a shared dependency file.
 

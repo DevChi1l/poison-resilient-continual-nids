@@ -108,4 +108,27 @@ training work; improvement is not assumed. The teacher saw the clean Task 1
 distribution, so this is a narrow label-consistency baseline, not evidence
 against backdoors, adaptive attackers, arbitrary new-class poisoning, or
 production deployment. No replay-poisoning or gate outcome has been observed
-yet.
+yet at the time that notebook was prepared; subsequent bounded Kaggle
+mitigation results are recorded in `PROJECT_STATUS.md`.
+
+## Prepared full-row Task 2 targeted replay comparison
+
+The new full-row notebook is narrower than the earlier six-arm bounded
+study: **only** clean replay, targeted20 unfiltered, and the identical
+targeted20 buffer after filtering. It reuses the completed five-class Task 1
+checkpoint and its 500 clean old-class training exemplars; Task 1 is never
+retrained. All 70,076 new-class training rows remain clean and available.
+Seed 42 flips 80 of 400 eligible old attack replay labels (1–4) to Benign
+(0): 20% of eligible rows but only 16% of the 500-row buffer. The changed
+original IDs and both denominators are saved for audit only.
+
+The old teacher calibrates a 95th-percentile label-inconsistency threshold
+on clean Task 1 validation. It sees only candidate features, supplied
+labels, probabilities/class mapping, and that frozen threshold when gating
+replay. Simulator originals and changed masks are never used to decide or
+restore a label. This is experimental exclusion, not a persistent human
+review/release workflow or a backdoor defense. Every arm uses the same
+class-balanced sampling protocol and 70,576 draws per epoch, although
+early stopping can produce unequal total optimizer steps. Validation
+selects each model; test results cannot tune the gate or training settings.
+No full-row Task 2 result exists until Kaggle executes the notebook.

@@ -1738,3 +1738,184 @@ Likely faculty questions:
   old-class training rows only; Task 2 replay has not begun.
 - **Is novelty success guaranteed?** No; the fifth-percentile threshold is
   a predeclared confidence baseline, evaluated only after calibration.
+
+---
+
+## Full Task 1 result and bounded targeted Task 2 replay study (2026-10-03)
+
+### Step 1: distinguish observed Task 1 evidence from the unrun Task 2 plan
+
+**Existing run reviewed:** The supplied
+`data/full-run-task_01/results/full_task1_20261003T074354_763068Z/`
+manifests, history, metrics, novelty JSON, replay manifest/buffer,
+environment and plots report a Tesla T4/Python 3.13.15/PyTorch
+2.11.0+cu128 run from source
+`e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9`. Task 1 used global IDs
+0–4, 6,347,232 training rows and 1,360,123 validation rows. It completed
+12 epochs with epoch 9 selected by validation loss. Training plus validation
+totaled `65.50660256425` minutes. On 1,360,119 old-class test rows, the
+saved metrics report accuracy `0.9925734439413022`, macro-F1
+`0.981162951652861`, balanced accuracy `0.9784715590433037`, and Benign
+FPR `0.004171892742372403` (4,497 false alarms out of 1,077,928 Benign).
+The saved row-normalized confusion plot and class chart agree with strong
+old-class recall, although DoS recall is lower than the other old classes.
+These are observed Task 1 results, not Task 2 retention.
+
+The predeclared fifth-percentile maximum-confidence novelty threshold
+flagged 691/15,015 held-out Task 2 test rows, unknown recall
+`0.04602064602064602`. It also rejected 67,987/1,360,119 known Task 1
+test rows. The threshold is a simple baseline; this is **low** unknown
+recall, not evidence of robust unseen-attack detection. We did not lower
+or tune it from these test results. The separate attached notebook snapshot
+has no execution outputs, so observations are attributed to the completed
+manifests/metrics instead.
+
+The Task 1 replay `.npz` is present locally. We independently checked its
+`(500,54)` finite float32 features, 500 unique int64 original IDs, 100
+labels per old class and exact ID agreement with its manifest. We also
+hashed the attached `best.pt` file and matched the reported SHA-256. We
+could not load its weights without local PyTorch or compare replay IDs and
+features to the unavailable full prepared arrays. The new Kaggle notebook
+performs those checks before using either input. Thus file-hash and buffer
+structure verification are distinct from independent weight/provenance
+verification.
+
+### Step 2: construct equal-work Task 2 sampling without a full feature copy
+
+**New code:** `src/training/task2_replay.py` provides `Task2ReplayView`.
+Inputs are a disk-backed view of all 70,076 clean Task 2 training rows
+(global IDs 5–7), already transformed frozen replay features/labels/IDs,
+and a fixed 70,576-draw epoch budget. It validates that replay IDs come
+from old-class **training** rows. The view never calls preprocessing on
+replay features again; only new rows are read/transformed from the prepared
+memmap in bounded batches. For each draw, it picks uniformly among classes
+present under the *supplied* labels, then uniformly among that class's
+available examples, with replacement. An epoch-specific seed advances the
+sequence. For example, if filtered replay loses every class-2 candidate,
+classes 0,1,3,4,5,6,7 each have expected draw probability 1/7; the epoch
+still draws exactly 70,576 rows rather than doing less work. This does not
+increase the 500-row replay memory. Actual per-class draw counts, expected
+probability, unique replay examples drawn, and optimizer steps enter each
+epoch's history through a backward-compatible optional exposure hook in
+`train_full_disk_backed`. Its existing ordinary full-disk and small-array
+paths are unchanged.
+
+**Verified synthetic:** `python3 -m unittest discover -s tests -p
+'test_task2_replay.py' -v` passed 2 tests for fixed balanced draws,
+seeded epoch advancement, no replay double-transform/mutation, empty old
+replay and split rejection. PyTorch-based full training remains a Kaggle
+check, not a local pass.
+
+### Step 3: freeze the threat model and keep the gate blind to simulator truth
+
+**Existing attack/gate reused, new bounded calibration helper:**
+`apply_label_flip` chooses 80 of 400 eligible old attack replay labels
+(IDs 1–4) using seed 42 and assigns Benign ID 0. It changes 20% of
+eligible sources, 16% of the full 500-row buffer. The two attacked arms
+share exactly this corrupted supplied-label array; Task 2 training labels,
+replay features, validation, teacher weights and preprocessing remain clean.
+The notebook saves changed original IDs and both denominators in an audit.
+
+The frozen five-output Task 1 teacher scores only **clean Task 1
+validation** in batches with `label_inconsistency_scores`, mapping each
+supplied external ID via `teacher.class_ids`. New
+`calibrate_label_consistency_scores` takes the retained one-dimensional
+clean scores and fixes their 95th percentile; it is equivalent to the
+existing probability-matrix calibration but avoids holding the full
+1.36-million-row probability matrix. For a replay candidate supplied as
+Benign with teacher probability 0.10 for Benign, inconsistency is 0.90.
+`apply_label_consistency_gate` rejects only scores strictly *above* the
+frozen threshold. Its inputs are features, supplied labels, teacher
+probabilities/class mapping, and threshold—**not** original clean labels,
+changed positions, or future Task 2 examples. After decisions,
+`replay_gate_metrics` separately uses simulator truth to report poison
+rejection, clean false rejection, retained poison fraction, and class
+counts. This is an experimental exclusion rule, not a persistent
+review/release system or proof against adaptive/backdoor attacks.
+
+**Verified synthetic:** `python3 -m unittest discover -s tests -p
+'test_label_consistency.py' -v` passed 6 tests, including agreement between
+old and new calibration APIs, non-mutation, threshold/gate behavior,
+class-ID mapping and separate audit accounting. No full-data filter result
+is claimed until the notebook runs.
+
+### Step 4: train and evaluate three fixed arms from the same Task 1 state
+
+**New, unexecuted notebook:**
+`notebooks/kaggle_review2_full_task2_targeted_mitigation.ipynb` pins
+published source `857dfbbcca2cfd6b33041ded51fbbae39b7a43f2`
+(the balanced-accuracy follow-up to `5546e7a4165eea51ba89e912603b5387e9506703`). Its
+explicit `PREPARED_DIR` and `TASK1_RUN_DIR` selectors accept current Kaggle
+working folders or attached read-only inputs. Before training it checks
+the prepared input checksum, split counts, continual-only preprocessor
+hash, Task 1 source and configuration, actual `best.pt` hash and global
+IDs 0–4, replay buffer shape/class balance/original IDs, training-only
+split codes, and exact frozen transformation of the 500 replay features.
+The eight-class static checkpoint/state are not loaded. These checks are
+planned for Kaggle; the large prepared arrays were not locally available.
+
+The only conditions are clean replay, targeted20 unfiltered, and the
+**same** targeted20 buffer after gating. For each arm, the notebook
+independently loads the Task 1 best checkpoint, seeds expansion to global
+IDs 0–7 identically, hashes and compares expanded initial weights, then
+trains from 70,576 class-balanced draws per epoch. Model settings remain
+hidden64, heads4, layers2, MLP128, batch256, lr0.001, seed42, mixed
+precision off, at most 12 epochs and patience5. The same **full clean
+seen-class validation** selects each best checkpoint by loss. The reused
+durable trainer records separate per-epoch `latest.pt`/`best.pt`, optimizer
+and RNG for exact epoch-boundary resume; per-arm identities include the
+supplied replay-label and feature hashes. If interrupted, completed arm
+folders can be reused. Equal work *per epoch* does not imply equal total
+work: early stopping can produce different epoch/step counts, which are
+reported rather than hidden.
+
+After selection, each arm's best model runs bounded inference on old and
+new test partitions once each. Their eight-class confusion matrices sum
+to combined metrics without a third inference. New pure
+`summarize_task2_counts` compares against the saved five-class Task 1
+reference, reporting old/new/combined accuracy, macro-F1/balanced
+accuracy (focused old/new balanced averages over five/three actual classes),
+per-class precision/recall/F1/support, Benign FPR,
+old-attack-to-Benign errors, and signed old accuracy/fixed-five-class F1
+forgetting. An old row predicted as a new class stays an error. For
+example, if old accuracy falls from 0.99 to 0.70, forgetting is +0.29;
+if it rises to 0.995, forgetting is -0.005. No test value selects an arm
+or changes the gate. Root comparison/audit files, condition-specific
+metrics/histories/checkpoints/reload checks, normalized confusion plots,
+and a forgetting/per-class recall/F1 chart are planned outputs only.
+
+**Verified synthetic:** `python3 -m unittest discover -s tests -p
+'test_full_continual_metrics.py' -v` passed 2 tests for fixed old-class
+averaging, new-class errors, signed forgetting, and incompatible-count
+rejection. Notebook JSON/syntax/empty-output and complete repository
+checks passed: 15 cells/7 code, Markdown stages and empty outputs;
+`python3 -m unittest discover -s tests -p 'test_*.py' -q` ran 57 tests
+(52 passed, 5 PyTorch/opt-in skips), `python3 -m compileall -q src tests`
+passed, and `git diff --check` passed. Local PyTorch/GPU and
+prepared arrays were unavailable; no full Task 2 metrics have been
+observed. One seed, row-level splitting without session-independence
+guarantees, approximate Task-1-only medians, trusted clean validation,
+and a teacher trained on clean old replay examples limit interpretation.
+
+**How to explain this in Review 2:** Task 1 retained its five known classes
+well on the full old-class test, but its confidence threshold scarcely
+recognized unseen classes. We are now keeping its checkpoint fixed as the
+starting point for three Task 2 runs. The attacker changes only 80 stored
+old attack labels to Benign; the proposed gate rejects replay examples
+that disagree with the frozen Task 1 teacher. We keep the same new-class
+data and draw budget in all runs, then compare clean replay, attacked
+replay, and attacked replay with filtering. We will not claim that
+filtering helps until the saved Kaggle results show it.
+
+Likely faculty questions:
+
+- **Why 80 flips rather than 100?** The declared 20% targeted rate divides
+  by 400 eligible attack replay rows; 80/500 is 16% of the whole buffer.
+- **Does the gate know which rows were poisoned?** No. Those simulator IDs
+  enter only the separate audit after the gate decides.
+- **Why hold draws at 70,576 after filtering?** It controls per-epoch
+  optimizer work while exposing the consequence of losing replay classes.
+- **Are all three arms equally trained in total?** Not necessarily: the
+  same validation-loss patience can stop them at different epochs.
+- **Can a positive rejection rate prove a useful defense?** No; downstream
+  old/new accuracy, false positives and forgetting must be checked too.
