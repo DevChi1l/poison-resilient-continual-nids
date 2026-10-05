@@ -2303,3 +2303,54 @@ Final local app integration remains **pending result review**: latest and
 historical playback, correctly paired inference checkpoints, live quarantine
 evidence, preflight, final findings Markdown, and teacher script. No
 unobserved results may be integrated; PPT/PDF files remain untouched.
+
+---
+
+## Task2 validation-only prediction-prior correction (prepared 2026-10-06)
+
+The completed acquisition archive `data/task2_acuizition/results (1).zip`
+passed ZIP integrity and safe-path checks; its SHA-256 is
+`6fc447d8fd394a411e25f482bf454cc1ae62d7eec7fbc1e0bcdc2fec08a21cf7`.
+The executed notebook ended successfully. The saved A/B best checkpoints,
+class IDs 0–7, Task1-frozen continual-preprocessing hash, and actual fixed
+sampling quotas were inspected. Uncorrected A/B full-validation macro-F1 is
+`0.6176915316285608`/`0.6164467819403847`; Benign FPR is
+`0.4317204565421285`/`0.3888502860578016`. Historically selected A's
+fixed-test Benign FPR was `0.432165228104289`; Infiltration recall rose to
+`0.7935057632836661` but precision was only `0.024144103299979257`.
+These are **observed pre-correction** findings, not evidence that calibration
+works.
+
+The source at `c788af5b12330335b35446d720f5445d1b4f3020` adds a
+prediction-only runner and no training path; checkpoint metadata checks were
+published at `68f815c6291d19b704a412d830949d0d66d279d7`. The notebook
+pins the latter commit.
+For both existing checkpoints it evaluates strengths `0, .25, .5, .75, 1`
+on the entire fixed validation partition. Each class's reference proportion
+comes from its original **training split** count; the compared draw prior is
+the verified acquisition sampler probability. The score is
+`logit + alpha * log(reference/draw)`. This assumes that a sampling-prior
+shift is useful after continual training; that is an exploratory hypothesis,
+not a guarantee or a fitted probability calibration. Alpha zero must exactly
+reproduce each saved uncorrected validation confusion matrix.
+
+Before scoring, eligibility is locked to Benign FPR at most 5%, old-class
+accuracy at least 90%, and arithmetic mean recall over the three new classes
+at least 50%. Among eligible candidates choose highest full-validation
+macro-F1 (ties: lower FPR, higher new mean recall, arm name, alpha). If none
+qualifies, save all class-wise tradeoffs and a clear failure finding, with
+**no test access**. Otherwise save the selection lock first and evaluate
+only that checkpoint/strength once on fixed test rows. Every candidate's
+validation record retains overall accuracy, macro-F1, all class precision/
+recall/F1, Benign FPR and old/new accuracy; confusion plots and the honest
+findings record stay private. Previous test results were already inspected,
+so even a selected test result is exploratory.
+
+The original ZIP or an extracted acquisition folder is accepted. Intact ZIP
+hash and per-file hashes (including both checkpoints) were derived from the
+locally verified artifact; altered folder evidence is rejected. Prepared
+arrays and frozen preprocessing are checked against Task1 identity hashes.
+No archived code is executed. Local synthetic tests, ZIP/folder equivalence,
+altered-file rejection, full suite and notebook syntax passed. No calibration
+inference or research training was run locally; no corrected metrics exist
+yet. Quarantine, poisoning, app and PPT/PDF remain outside this task.

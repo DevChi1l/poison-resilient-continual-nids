@@ -1354,3 +1354,52 @@ training, app, PPT/PDF or main-branch work occurred. Preserve untracked
 Next action: run the corrected notebook on Kaggle with the same inputs and
 experiment settings. Save all private results, then review class-wise
 acquisition and retention before final app integration.
+
+---
+
+## 2026-10-06: validation-only Task2 prior-correction notebook prepared
+
+Owner: unified A+B+C, branch `feature/unified-novelty`. Began at matching
+local/remote `7299cae2ad318f01b5b8e048628050c50fd66f23`. The completed
+acquisition archive is `data/task2_acuizition/results (1).zip`, SHA-256
+`6fc447d8fd394a411e25f482bf454cc1ae62d7eec7fbc1e0bcdc2fec08a21cf7`.
+It passed CRC/path/symlink checks. Its executed notebook has four completed
+code cells and a successful acquisition-runner ending. A/B checkpoint hashes
+are respectively `6b7eff361a3eeebf8d13963c8be4cff6c37a9c35207ae9e392eef9e914d08a67`
+and `72fc99d0efd8970aba9dc87e68ca63e41fa49080e081dafee7b8a2098a94016b`.
+Both use class IDs 0–7 and the same recorded 141,152-draw quotas each epoch.
+
+The new runner `scripts/run_task2_prior_calibration.py` was published first
+at `c788af5b12330335b35446d720f5445d1b4f3020`, with checkpoint metadata
+verification at `68f815c6291d19b704a412d830949d0d66d279d7`. The one
+notebook `notebooks/kaggle_review2_task2_prior_calibration.ipynb` pins the
+latter. Attach the
+complete prepared folder at
+`/kaggle/input/notebooks/dvdhere/preparation/review2_large_prepare_20261002T223303_224539Z`
+and either the complete extracted `task2_clean_acquisition_study` folder or
+the exact original acquisition ZIP as private Kaggle inputs. The notebook
+discovers exactly one verified source or accepts an explicit folder/ZIP
+selector. Enable GPU and Internet. No original Parquet or Task1 run input is
+needed. Output is `/kaggle/working/task2_prior_calibration_study`.
+
+The predeclared prediction adjustment is
+`argmax(logits + alpha * log(original_training_prior / recorded_draw_prior))`
+for alpha 0, .25, .5, .75, 1. Original training counts are read only from
+the fixed split manifest. Both checkpoints are scored on full validation;
+alpha 0 must reproduce saved validation confusion exactly. Eligibility:
+Benign FPR <=5%, old accuracy >=90%, and mean new-class recall >=50%.
+Choose highest eligible validation macro-F1, with locked tie-breaks. If none
+is eligible, save full validation tradeoffs and findings but do not open test.
+Otherwise test only the selected checkpoint/alpha once. Save protocol,
+validation grid with all per-class metrics, selection lock, selected-test
+metrics if applicable, normalized confusion plots and `findings.json`.
+This is exploratory because historical test results have already been seen;
+it is not probability calibration or a deployment claim.
+
+Source suite: 85 passed, one opt-in test skipped, 65 subtests. The local
+original ZIP and a temporary extracted folder produced identical verified
+evidence; a changed JSON was rejected. Notebook syntax/empty outputs/source
+pin were checked. No research inference or training was launched locally.
+Gate, poisoning, app, original artifacts and faculty branch remain unchanged.
+Next: run this notebook on Kaggle and inspect the acceptance/tradeoff record
+before deciding any demo integration.

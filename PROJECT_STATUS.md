@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-05 (acquisition notebook test import repaired; awaiting Kaggle run)
+Last updated: 2026-10-06 (acquisition evidence reviewed; prior-correction notebook prepared)
 
 ## Current state
 
@@ -894,3 +894,35 @@ Next: rerun the corrected notebook on Kaggle and preserve its complete
 private output for result review. Existing app, original results, faculty
 branch and PPT/PDF remain untouched. Pre-existing untracked `codexmem.tx`
 and `prepared_data_info.txt` were preserved.
+
+## 2026-10-06: exploratory Task2 prediction-prior correction prepared
+
+Started from matching local/remote `7299cae2ad318f01b5b8e048628050c50fd66f23`.
+Read the completed acquisition `results (1).zip` and executed notebook as
+evidence without running archived code. The ZIP is intact, SHA-256
+`6fc447d8fd394a411e25f482bf454cc1ae62d7eec7fbc1e0bcdc2fec08a21cf7`.
+Both A/B validation-best checkpoint hashes, eight-class order, frozen
+preprocessor and per-epoch sampling quotas match the saved records. The
+uncorrected validation Benign FPR is 43.17% for A and 38.89% for B. A's
+selected historical test had 43.22% Benign FPR and Infiltration recall
+79.35% but precision 2.41%; improved new recall therefore came with many
+false alarms. These are observed uncorrected results, not calibration results.
+
+Published source-only calibration runner and synthetic tests at
+`c788af5b12330335b35446d720f5445d1b4f3020`, then the checkpoint-metadata
+verification at `68f815c6291d19b704a412d830949d0d66d279d7`. The notebook
+pins the latter SHA.
+It compares locked strengths 0, 0.25, 0.5, 0.75, 1 on full validation for
+both saved checkpoints. Original training-split proportions alone provide
+the reference prior. Eligibility is Benign FPR <=5%, old accuracy >=90%,
+and new-class mean recall >=50%; highest eligible validation macro-F1 wins.
+If none qualifies, no test view is opened. Only a selected candidate receives
+one fixed-test pass. No training, quarantine, poisoning or app code changed.
+
+Full local suite passed 85 tests, one opt-in smoke skipped, 65 subtests.
+Original ZIP and a temporary extracted folder gave identical verified
+evidence; altered evidence was rejected. No calibration metrics have been
+observed yet. Next: run the notebook on Kaggle with the complete prepared
+folder and complete acquisition output folder or original ZIP; preserve all
+private outputs for review. Existing demo, faculty branch, original results,
+PPT/PDF and untracked `codexmem.tx`/`prepared_data_info.txt` are untouched.
