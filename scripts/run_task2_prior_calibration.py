@@ -287,8 +287,17 @@ def main() -> None:
             raise ValueError("Existing private checkpoint copy differs from verified evidence")
         if not checkpoint_path.exists():
             checkpoint_path.write_bytes(values[f"{arm}/best.pt"])
-        model = TabularTransformerClassifier.load(checkpoint_path, device="cuda")
         config = json.loads(values[f"{arm}/arm_config.json"])
+        saved_checkpoint = torch.load(checkpoint_path, map_location="cpu", weights_only=False)
+        recorded_summary = json.loads(values[f"{arm}/arm_summary.json"])
+        if not (saved_checkpoint["class_ids"] == list(CLASS_IDS) and
+                saved_checkpoint["config"] == config["model"] and
+                saved_checkpoint["data_identity"] == config["identity"] and
+                saved_checkpoint["best_epoch"] == recorded_summary["best_epoch"] and
+                saved_checkpoint["checkpoint_selection"] == "validation_macro_f1"):
+            raise ValueError(f"{arm}: checkpoint metadata differs from verified run")
+        del saved_checkpoint
+        model = TabularTransformerClassifier.load(checkpoint_path, device="cuda")
         if not (model.class_ids == CLASS_IDS and model.config.num_features == 54 and
                 model.config.num_classes == 8 and
                 model.config.__dict__ == config["model"]):
