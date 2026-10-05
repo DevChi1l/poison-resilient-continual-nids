@@ -19,10 +19,16 @@ import platform
 import random
 import shutil
 import subprocess
+import sys
 from time import perf_counter
 from typing import Any
 
 import numpy as np
+
+
+REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
+if str(REPOSITORY_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPOSITORY_ROOT))
 
 
 EXPECTED_PREP_SOURCE_SHA = "5c0d519596bc6c4b99948126443635c2f7eb15f1"
@@ -206,7 +212,7 @@ def main() -> None:
         raise RuntimeError("Less than 750 MB is free under /kaggle/working")
 
     source_sha = subprocess.check_output(
-        ["git", "rev-parse", "HEAD"], cwd=Path(__file__).resolve().parents[1], text=True
+        ["git", "rev-parse", "HEAD"], cwd=REPOSITORY_ROOT, text=True
     ).strip()
     environment = {
         "python": platform.python_version(), "numpy": np.__version__,
@@ -312,6 +318,9 @@ def main() -> None:
             np.array_equal(replay_ids, np.asarray(replay_manifest["original_row_ids"])) and
             replay_manifest["seed"] == SEED and
             replay_manifest["rows_per_class"] == 100 and
+            replay_manifest["preprocessing_sha256"] ==
+            task1_identity["continual_preprocessing_sha256"] and
+            all(np.count_nonzero(replay_y == class_id) == 100 for class_id in OLD_IDS) and
             replay_manifest["source_partition"] == "original training only"):
         raise ValueError("Existing 500-row replay buffer is incompatible")
 
