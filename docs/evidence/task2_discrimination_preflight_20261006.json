@@ -1,0 +1,47 @@
+{
+  "status": "pre-experiment audit; no new research training",
+  "calibration_evidence": {
+    "local_zip": "data/task2_prior_calib/results.zip",
+    "zip_sha256": "5e36a752e654c960a5f352d3d109f4f97b099ae68e937d91dc8b1469bef3c2bf",
+    "zip_members": 203,
+    "zip_crc_and_path_checks": "passed; no archived code executed",
+    "executed_notebook": "data/task2_prior_calib/task2-calib.ipynb",
+    "executed_notebook_sha256": "247320bb58f689997d0e9e88c381a881344b26f41e11a2b455411008bfc77475",
+    "selected_arm": "A_revised_clean",
+    "correction_strength": 0.5,
+    "selected_fixed_test": {
+      "accuracy": 0.9781388577404093,
+      "macro_f1": 0.7030714684177135,
+      "benign_fpr": 0.009719573106923653,
+      "old_accuracy": 0.9884385116302323,
+      "new_accuracy": 0.04515484515484516,
+      "infiltration_precision": 0.12,
+      "infiltration_recall": 0.0010542592071970762
+    },
+    "interpretation": "Aggregate accuracy and average-new-recall eligibility concealed failed Infiltration detection; not successful eight-class learning."
+  },
+  "training_only_audit": {
+    "source": "original data/cic-collection.parquet plus locally hash-matched fixed labels/splits",
+    "seed": 42,
+    "sample_per_class": {"Benign": 20000, "Infiltration": 20000},
+    "sample_original_ids_sha256": "04459f8c0880f2869ccc7bb4f750c08da8fc31f1644838262a51f96f2a278801",
+    "all_sample_rows_training_only": true,
+    "sample_labels_and_54_feature_order_aligned": true,
+    "negative_or_nonfinite_cells_to_missing": 30291,
+    "frozen_continual_transform_finite": true,
+    "exact_cleaned_float32_duplicate_groups_in_sample": 26,
+    "exact_cross_label_feature_collision_groups_in_sample": 23,
+    "limitation": "Deterministic sample finding only; no full-population collision rate or proven causal explanation."
+  },
+  "historical_replay": {
+    "source": "hash-verified data/task2_clean_ret/results_ret.zip manifest",
+    "distinct_training_rows": 25000,
+    "rows_per_old_class": 5000,
+    "benign_fraction_of_available_train_rows": 0.0009939701793042685
+  },
+  "new_study_hypotheses_not_confirmed_defects": [
+    "Broader Benign replay may improve the Benign/Infiltration decision boundary.",
+    "Less extreme Infiltration draw exposure may lower Benign false alarms.",
+    "Observed cross-label feature collisions may limit separability."
+  ]
+}

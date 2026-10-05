@@ -2354,3 +2354,68 @@ No archived code is executed. Local synthetic tests, ZIP/folder equivalence,
 altered-file rejection, full suite and notebook syntax passed. No calibration
 inference or research training was run locally; no corrected metrics exist
 yet. Quarantine, poisoning, app and PPT/PDF remain outside this task.
+
+---
+
+## Clean Benign/Infiltration discrimination study prepared (2026-10-06)
+
+The completed calibration `results.zip` was read only after CRC/path checks;
+its SHA-256 is `5e36a752e654c960a5f352d3d109f4f97b099ae68e937d91dc8b1469bef3c2bf`.
+The executed notebook ended successfully. Its validation-selected A/alpha
+0.5 fixed-test result is accuracy `0.9781388577404093`, macro-F1
+`0.7030714684177135`, Benign FPR `0.009719573106923653`, old accuracy
+`0.9884385116302323`, new accuracy `0.04515484515484516`, and Infiltration
+precision/recall `0.12`/`0.0010542592071970762`. The prior acceptance
+rule used mean new-class recall and allowed this near-zero Infiltration
+recall because Webattack/Portscan recall remained high. **Do not claim
+eight-class detection is solved.** Earlier test evidence was already
+inspected, so new work remains exploratory.
+
+We first audited a deterministic seed-42 sample of 20,000 original training
+Benign and 20,000 original training Infiltration flows from the Parquet,
+using hash-matched saved labels/splits. All sampled labels and 54-feature
+order matched; 30,291 negative/nonfinite cells became missing by the frozen
+rule and the continual transform produced finite features. Among these
+40,000 cleaned float32 rows there were 26 exact duplicate-vector groups,
+23 spanning the two labels. This is a **sample-only confirmed ambiguity**;
+no full-population collision rate or causal mechanism is established. The
+saved 25,000-row replay had 5,000 distinct examples per old class, so
+Benign coverage was 5,000/5,030,332 original training Benign rows. Wider
+Benign coverage, reduced Infiltration oversampling, and label ambiguity are
+hypotheses, not confirmed model defects. Reproducible audit details are in
+`docs/evidence/task2_discrimination_preflight_20261006.json`.
+
+Source `6ffb310a0b866986bd7063d5b3a485f0278dd39d` and the pinned
+single Kaggle notebook define just two clean schedules. Both reload verified
+Task1 best, use the same seeded eight-class expansion, architecture, frozen
+Task1 continual preprocessing, 140,000 distinct training-only replay rows
+(100,000 Benign plus 10,000 from each old attack), LR 0.0003, batch 256,
+211,728 draws per epoch, at most 12 epochs, patience four, and full-clean-
+validation macro-F1 checkpoint selection. Replay selection reads original
+training IDs; materialization reads at most 4,096 raw rows per disk batch,
+transforms once and records row-ID/feature/label hashes. Task2 new rows are
+read from the original training split only. A draws 70% old in original old
+class proportions, 20% Infiltration, 5% Webattack, 5% Portscan. B draws
+75/15/5/5%. Only the sampling schedule differs between these new arms;
+historical comparisons mix other changes and are not isolated ablations.
+
+Each arm records actual quota and unique-row exposure, optimizer steps,
+epochs, best/latest checkpoints and strict epoch-boundary resume. Validation
+records retain overall accuracy, macro-F1, all class precision/recall/F1,
+Benign FPR and old/new accuracy. An arm must meet Benign FPR <=5%, old
+accuracy >=90%, and **recall >=50% independently for all three new classes**.
+Highest eligible validation macro-F1 selects the checkpoint; no eligible
+arm means no test access and an explicit tradeoff finding. The selection
+lock is saved before reading fixed test. Only one selected model, if any,
+receives one test pass with forgetting and confusion plots. Never substitute
+high aggregate accuracy or new-class average for Infiltration detection.
+
+The prior T4 acquisition run measured 26.32 and 27.81 seconds per epoch at
+141,152 draws. Extrapolating training time to 211,728 draws while keeping
+full-validation time similar gives roughly 30–32 seconds/epoch, or about
+12–13 GPU minutes at 24 capped epochs. Allow 17–25 minutes including
+hashing, replay construction, test and Kaggle overhead; the new study itself
+has **not** run, so this is only a measured-basis estimate. Full local suite
+passed 88 tests, one opt-in real-data smoke skipped, 65 subtests; notebook
+syntax and empty outputs passed. App, poisoning, gate, PPT/PDF and original
+artifacts were unchanged.

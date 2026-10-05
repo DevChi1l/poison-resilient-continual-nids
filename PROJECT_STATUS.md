@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-06 (acquisition evidence reviewed; prior-correction notebook prepared)
+Last updated: 2026-10-06 (calibration reviewed; clean discrimination notebook prepared)
 
 ## Current state
 
@@ -926,3 +926,42 @@ observed yet. Next: run the notebook on Kaggle with the complete prepared
 folder and complete acquisition output folder or original ZIP; preserve all
 private outputs for review. Existing demo, faculty branch, original results,
 PPT/PDF and untracked `codexmem.tx`/`prepared_data_info.txt` are untouched.
+
+## 2026-10-06: calibration failure recorded; clean discrimination study prepared
+
+Started from matching local/remote `5da2514dde4f22d5020f708b2c8594284044e389`.
+The completed uploaded calibration ZIP passed CRC/path checks; SHA-256
+`5e36a752e654c960a5f352d3d109f4f97b099ae68e937d91dc8b1469bef3c2bf`.
+The executed notebook ended normally. Its selected fixed-test result was
+accuracy 97.8139%, macro-F1 70.3071%, Benign FPR 0.9720%, but Infiltration
+recall 0.1054% and new-class accuracy 4.5155%. The average-new-recall rule
+masked failed Infiltration detection. This is **not** solved eight-class NIDS.
+
+A deterministic training-only audit of 20,000 Benign and 20,000 Infiltration
+rows found label and 54-feature-order alignment and finite output from the
+frozen continual preprocessor. After the recorded float32 missing-value rule,
+23 sampled exact-feature groups carried both labels. This is a confirmed
+sample ambiguity, not a proven cause or a full-population rate. Historical
+replay had 5,000 distinct Benign rows out of 5,030,332 available training
+Benign rows. See `docs/evidence/task2_discrimination_preflight_20261006.json`.
+
+Published `scripts/run_task2_discrimination.py` and synthetic tests at
+`6ffb310a0b866986bd7063d5b3a485f0278dd39d`; the new single Kaggle
+notebook pins that source. It uses 100,000 distinct training-only Benign and
+10,000 from each old attack class, with bounded 4,096-row replay loading.
+Two clean schedules differ only in sampling: A old/Infiltration/Webattack/
+Portscan 70/20/5/5%, B 75/15/5/5%; old shares follow original old-training
+proportions. Both use Task1 best, frozen preprocessing, seed 42, LR 0.0003,
+batch 256, 211,728 draws/epoch, max 12, patience four, and durable
+validation-macro-F1 checkpoints. Each new class must achieve validation
+recall >=50% separately, with Benign FPR <=5% and old accuracy >=90%.
+If neither qualifies, no test access; otherwise only the validation-selected
+model gets one fixed-test pass. Historical test results were already viewed,
+so this is exploratory. No local research training occurred.
+
+Local suite: 88 passed, one opt-in smoke skipped, 65 subtests. Focused replay,
+quota, separate-class-recall and durable-resume tests passed; notebook syntax
+and empty outputs checked. Original artifacts, demo, poisoning/gate, faculty
+branch, PPT/PDF and pre-existing untracked files remain untouched. Next:
+run the notebook on Kaggle, preserve the whole private output, and review
+Infiltration precision/recall and Benign FPR before any app changes.

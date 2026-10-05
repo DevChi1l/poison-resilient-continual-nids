@@ -1403,3 +1403,72 @@ pin were checked. No research inference or training was launched locally.
 Gate, poisoning, app, original artifacts and faculty branch remain unchanged.
 Next: run this notebook on Kaggle and inspect the acceptance/tradeoff record
 before deciding any demo integration.
+
+---
+
+## 2026-10-06: clean Benign/Infiltration discrimination handoff
+
+Owner: unified A+B+C, `feature/unified-novelty`; started from verified
+local/remote `5da2514dde4f22d5020f708b2c8594284044e389`.
+`data/task2_prior_calib/results.zip` is intact, SHA-256
+`5e36a752e654c960a5f352d3d109f4f97b099ae68e937d91dc8b1469bef3c2bf`;
+its executed notebook completed. Calibration-selected A at strength 0.5 had
+fixed-test accuracy `0.9781388577404093`, macro-F1
+`0.7030714684177135`, Benign FPR `0.009719573106923653`, but
+Infiltration recall `0.0010542592071970762` and new accuracy
+`0.04515484515484516`. The average-new-recall criterion was insufficient;
+do not present this as successful eight-class detection.
+
+Audit: seed-42 sample of 20,000 training-only Benign and 20,000 training-only
+Infiltration rows matched source labels and 54-feature order; frozen transform
+was finite. There were 23 exact cleaned-float32 cross-label collision groups
+in the sample. No model/preprocessing implementation defect was confirmed;
+the collisions are observed label ambiguity, not a proven cause. The prior
+25,000-row replay included just 5,000 distinct Benign rows. Full evidence
+details and limitations are in
+`docs/evidence/task2_discrimination_preflight_20261006.json`.
+
+Source was published first at
+`6ffb310a0b866986bd7063d5b3a485f0278dd39d`. The one notebook
+`notebooks/kaggle_review2_task2_discrimination.ipynb` pins this full SHA.
+Attach exactly these complete private Kaggle inputs:
+
+```python
+PREPARED_DIR = Path('/kaggle/input/notebooks/dvdhere/preparation/review2_large_prepare_20261002T223303_224539Z')
+TASK1_RUN_DIR = Path('/kaggle/input/notebooks/dvdhere/full-run-task1/full_task1_20261003T074354_763068Z')
+OUTPUT_DIR = Path('/kaggle/working/task2_discrimination_study')
+```
+
+Enable GPU and Internet. The script hashes prepared arrays and Task1 best,
+checks split/preprocessor identity, selects 100,000 distinct Benign and
+10,000 per other old class strictly from train, then materializes replay in
+bounded disk-backed batches. New-class rows come only from fixed train.
+Schedules A/B are locked at old/Inf/Web/Port 70/20/5/5% versus 75/15/5/5%,
+with old class draw share distributed by original old-training proportions.
+All other settings match: initial expanded Task1 weights, architecture,
+seed 42, LR 0.0003, batch 256, 211,728 draws (828 steps) per epoch, maximum
+12 epochs, patience four, full-validation macro-F1 checkpoint selection,
+atomic best/latest and exact epoch-boundary resume. An optional
+`RESUME_RUN_DIR` in the notebook accepts a preserved complete private output.
+
+Acceptance is declared before training: validation Benign FPR <=5%, old
+accuracy >=90%, and **each** of Infiltration/Webattack/Portscan recall >=50%.
+Among eligible arms choose highest validation macro-F1, ties lower FPR,
+higher Infiltration recall, stable arm name. If none eligible, save findings
+and validation tradeoff plots, with no test view opened. Otherwise evaluate
+the one selected checkpoint once on fixed test. Outputs are private replay
+IDs/manifest, protocol, both arm configs/checkpoints/history/exposure,
+validation metrics, `selection_lock.json`, `findings.json`, and selected
+test metrics/confusion plots only when eligible. Report every class's
+precision/recall/F1 and note historical test inspection makes this
+exploratory. No research training has run locally.
+
+The previous acquisition T4 measured 26.32 and 27.81 seconds per completed
+141,152-draw train-plus-full-validation epoch. Extrapolating to 211,728 draws
+gives roughly 30–32 seconds/epoch or 12–13 GPU minutes at the two-arm
+24-epoch cap, plus hashes, replay construction and test; allow 17–25 minutes.
+This is a planning estimate, not a measured runtime for the new study.
+Full local suite passed 88 tests plus 65 subtests, with one opt-in real-data
+smoke skipped. Preserve original results, demo, poisoning/gate code,
+faculty branch and PPT/PDF. Next: run the notebook and review results
+before touching UI or poisoning.
