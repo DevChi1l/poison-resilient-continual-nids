@@ -11,6 +11,7 @@ from __future__ import annotations
 import argparse
 from dataclasses import asdict, replace
 from datetime import datetime, timezone
+import hashlib
 import json
 import os
 from pathlib import Path, PurePosixPath
@@ -53,6 +54,19 @@ RETENTION_ROOT = "task2_clean_retention_study/"
 CALIBRATION_MEMBER = (
     "full_task2_targeted_20261003T095508_992113Z/calibration.json"
 )
+# SHA-256 of the exact JSON bytes read by this runner, derived from the two
+# original, whole-archive-hash-verified ZIPs. Folder inputs use these same bytes.
+RETENTION_EVIDENCE_SHA256 = {
+    "protocol.json": "42b7354799c470b0b9b252763f9ed080ca2f6695af576224d4fc93eba438e884",
+    "large_replay_manifest.json": "e7187cd1054e5229a937a4a49968a64e3848434d71affb1492b334dc7438c6f9",
+    "B_large_proportional_lr1e4/arm_config.json": "d68bf9ba1e7609a852b1b081474f6a39244569c8432374706e86dcdc78b528b8",
+    "B_large_proportional_lr1e4/arm_summary.json": "25c67a6fa8d1f7b778a735909430d80fabf92ffc3c256d147bfaaf8dbfcda465",
+    "B_large_proportional_lr1e4/validation_metrics.json": "9fd26a52aaf69dc9d096e8fff0bdb60e4b791f0ca4d1e2f96fe2a1c337d03c26",
+    "selected_test_summary.json": "fe355f64316da7e18c6a5c9bc2a5a6e7115fb7c5b76aecf93468cd4c44a59d93",
+    "study_manifest.json": "2f7cd365f5309ada3b547313f50853dd1321fc55e069e73cf5785ccd01418d26",
+    "environment.json": "b11a3dfbda3a2ea492ea59b20152b73f9bc6ff904a81e7e90094ffaa8ade3f37",
+}
+PRIOR_EVIDENCE_SHA256 = {"calibration.json": EXPECTED_CALIBRATION_JSON_SHA256}
 HISTORICAL_RETENTION_SOURCE = "57009efe09f48ee742576bcc5d089a71c30b4f0e"
 HISTORICAL_B_INITIAL_SHA256 = "e53fb3c899176c99cb4914a8dd2f03f3addba355e4b3566a5dd17df23853640a"
 OLD_IDS = tuple(range(5))
@@ -70,8 +84,12 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--prepared-dir", required=True, type=Path)
     parser.add_argument("--task1-run-dir", required=True, type=Path)
-    parser.add_argument("--retention-results-zip", required=True, type=Path)
-    parser.add_argument("--prior-task2-results-zip", required=True, type=Path)
+    retention = parser.add_mutually_exclusive_group(required=True)
+    retention.add_argument("--retention-results-zip", type=Path)
+    retention.add_argument("--retention-results-dir", type=Path)
+    prior = parser.add_mutually_exclusive_group(required=True)
+    prior.add_argument("--prior-task2-results-zip", type=Path)
+    prior.add_argument("--prior-task2-results-dir", type=Path)
     destination = parser.add_mutually_exclusive_group()
     destination.add_argument("--output-dir", type=Path)
     destination.add_argument("--resume-run-dir", type=Path)
@@ -133,6 +151,7 @@ def read_verified_json_archive(
     *,
     expected_sha256: str,
     members: tuple[str, ...],
+    member_sha256: dict[str, str] | None = None,
 ) -> dict[str, dict]:
     """Read only named JSON evidence from a hash-pinned, structurally safe ZIP."""
 
@@ -148,8 +167,53 @@ def read_verified_json_archive(
             raise ValueError(f"Evidence ZIP lacks required members: {sorted(missing)}")
         for member in members:
             payload = archive.read(member)
+            if member_sha256 is not None and hashlib.sha256(payload).hexdigest() != member_sha256[member]:
+                raise ValueError(f"Evidence file hash mismatch: {member}")
             records[member] = json.loads(payload.decode("utf-8"))
     return records
+
+
+def read_verified_json_folder(
+    folder: Path, *, root: str, member_sha256: dict[str, str]
+) -> dict[str, dict]:
+    """Read only pinned JSON files from an extracted study root, with no symlinks."""
+
+    if not folder.is_dir() or folder.is_symlink():
+        raise ValueError(f"Evidence folder must be a real directory: {folder}")
+    records: dict[str, dict] = {}
+    for relative, expected_hash in member_sha256.items():
+        part = PurePosixPath(relative)
+        if part.is_absolute() or ".." in part.parts or not relative.endswith(".json"):
+            raise ValueError(f"Unsafe evidence filename: {relative!r}")
+        target = folder.joinpath(*part.parts)
+        current = folder
+        for component in part.parts:
+            current = current / component
+            if current.is_symlink():
+                raise ValueError(f"Evidence symlink rejected: {relative}")
+        if not target.is_file():
+            raise FileNotFoundError(f"Required evidence file missing: {target}")
+        payload = target.read_bytes()
+        if hashlib.sha256(payload).hexdigest() != expected_hash:
+            raise ValueError(f"Evidence file hash mismatch: {target}")
+        records[root + relative] = json.loads(payload.decode("utf-8"))
+    return records
+
+
+def read_verified_evidence(
+    source: Path, *, root: str, zip_sha256: str, member_sha256: dict[str, str]
+) -> dict[str, dict]:
+    if source.is_dir():
+        return read_verified_json_folder(source, root=root, member_sha256=member_sha256)
+    if source.is_file():
+        members = tuple(root + name for name in member_sha256)
+        return read_verified_json_archive(
+            source,
+            expected_sha256=zip_sha256,
+            members=members,
+            member_sha256={root + name: digest for name, digest in member_sha256.items()},
+        )
+    raise FileNotFoundError(f"Evidence ZIP or folder missing: {source}")
 
 
 def require_supplied_class_buckets(
@@ -205,33 +269,19 @@ def _load_or_write_npz(path: Path, arrays: dict[str, np.ndarray]) -> str:
     return sha256_file(path)
 
 
-def _evidence_bundle(retention_zip: Path, prior_zip: Path) -> dict[str, Any]:
-    retention_members = tuple(RETENTION_ROOT + name for name in (
-        "protocol.json",
-        "large_replay_manifest.json",
-        "B_large_proportional_lr1e4/arm_config.json",
-        "B_large_proportional_lr1e4/arm_summary.json",
-        "B_large_proportional_lr1e4/validation_metrics.json",
-        "selected_test_summary.json",
-        "study_manifest.json",
-        "environment.json",
-    ))
-    retention = read_verified_json_archive(
-        retention_zip,
-        expected_sha256=EXPECTED_RETENTION_ZIP_SHA256,
-        members=retention_members,
+def _evidence_bundle(retention_source: Path, prior_source: Path) -> dict[str, Any]:
+    retention = read_verified_evidence(
+        retention_source,
+        root=RETENTION_ROOT,
+        zip_sha256=EXPECTED_RETENTION_ZIP_SHA256,
+        member_sha256=RETENTION_EVIDENCE_SHA256,
     )
-    prior = read_verified_json_archive(
-        prior_zip,
-        expected_sha256=EXPECTED_PRIOR_TASK2_ZIP_SHA256,
-        members=(CALIBRATION_MEMBER,),
+    prior = read_verified_evidence(
+        prior_source,
+        root=CALIBRATION_MEMBER.removesuffix("calibration.json"),
+        zip_sha256=EXPECTED_PRIOR_TASK2_ZIP_SHA256,
+        member_sha256=PRIOR_EVIDENCE_SHA256,
     )
-    calibration_bytes_hash = None
-    with ZipFile(prior_zip) as archive:
-        import hashlib
-        calibration_bytes_hash = hashlib.sha256(archive.read(CALIBRATION_MEMBER)).hexdigest()
-    if calibration_bytes_hash != EXPECTED_CALIBRATION_JSON_SHA256:
-        raise ValueError("Prior clean-validation calibration record hash changed")
     by_short_name = {
         member.removeprefix(RETENTION_ROOT): value for member, value in retention.items()
     }
@@ -317,10 +367,22 @@ def main() -> None:
     torch.backends.cudnn.deterministic = True
     prepared_dir = require_kaggle_directory(args.prepared_dir, "prepared input")
     task1_dir = require_kaggle_directory(args.task1_run_dir, "Task 1 run")
-    retention_zip = require_kaggle_file(args.retention_results_zip, "retention evidence ZIP")
-    prior_zip = require_kaggle_file(args.prior_task2_results_zip, "prior Task 2 evidence ZIP")
+    retention_source = (
+        require_kaggle_file(args.retention_results_zip, "retention evidence ZIP")
+        if args.retention_results_zip is not None else
+        require_kaggle_directory(args.retention_results_dir, "retention evidence folder")
+    )
+    prior_source = (
+        require_kaggle_file(args.prior_task2_results_zip, "prior Task 2 evidence ZIP")
+        if args.prior_task2_results_zip is not None else
+        require_kaggle_directory(args.prior_task2_results_dir, "prior Task 2 evidence folder")
+    )
     destination = output_folder(args)
-    inputs = (prepared_dir, task1_dir, retention_zip.parent, prior_zip.parent)
+    inputs = (
+        prepared_dir, task1_dir,
+        retention_source if retention_source.is_dir() else retention_source.parent,
+        prior_source if prior_source.is_dir() else prior_source.parent,
+    )
     if any(destination == value or destination.is_relative_to(value) for value in inputs):
         raise ValueError("Output must be separate from every read-only input")
     if shutil.disk_usage("/kaggle/working").free < 1_000_000_000:
@@ -337,7 +399,7 @@ def main() -> None:
         "gpu_name": torch.cuda.get_device_name(0),
         "cuda_device_count": torch.cuda.device_count(),
     }
-    evidence = _evidence_bundle(retention_zip, prior_zip)
+    evidence = _evidence_bundle(retention_source, prior_source)
     _verify_retention_evidence(evidence)
 
     prep_manifest = json.loads((prepared_dir / "manifest.json").read_text())

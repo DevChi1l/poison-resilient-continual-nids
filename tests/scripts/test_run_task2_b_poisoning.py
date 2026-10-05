@@ -9,6 +9,7 @@ import numpy as np
 
 from scripts.run_task2_b_poisoning import (
     fixed_b_probabilities,
+    read_verified_evidence,
     read_verified_json_archive,
     require_supplied_class_buckets,
 )
@@ -20,6 +21,39 @@ def _sha256(path: Path) -> str:
 
 
 class FrozenBProtocolTests(unittest.TestCase):
+    def test_zip_and_extracted_folder_match_and_altered_file_is_rejected(self):
+        import tempfile
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            folder = root / "study"
+            (folder / "arm").mkdir(parents=True)
+            records = {
+                "protocol.json": b'{"seed":42}',
+                "arm/metrics.json": b'{"accuracy":0.5}',
+            }
+            for name, payload in records.items():
+                (folder / name).write_bytes(payload)
+            archive_path = root / "original.zip"
+            with zipfile.ZipFile(archive_path, "w") as archive:
+                for name, payload in records.items():
+                    archive.writestr("study/" + name, payload)
+            hashes = {name: hashlib.sha256(payload).hexdigest()
+                      for name, payload in records.items()}
+            arguments = {"root": "study/", "zip_sha256": _sha256(archive_path),
+                         "member_sha256": hashes}
+            self.assertEqual(
+                read_verified_evidence(archive_path, **arguments),
+                read_verified_evidence(folder, **arguments),
+            )
+            (folder / "arm/metrics.json").write_bytes(b'{"accuracy":0.6}')
+            with self.assertRaisesRegex(ValueError, "Evidence file hash mismatch"):
+                read_verified_evidence(folder, **arguments)
+            (folder / "arm/metrics.json").unlink()
+            (folder / "arm/metrics.json").symlink_to(folder / "protocol.json")
+            with self.assertRaisesRegex(ValueError, "Evidence symlink rejected"):
+                read_verified_evidence(folder, **arguments)
+
     def test_named_evidence_reader_rejects_unsafe_members(self):
         import tempfile
 
