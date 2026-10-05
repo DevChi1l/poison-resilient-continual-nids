@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-05 (clean Task2 acquisition notebook prepared; awaiting Kaggle run)
+Last updated: 2026-10-05 (acquisition notebook test import repaired; awaiting Kaggle run)
 
 ## Current state
 
@@ -872,3 +872,25 @@ integration: latest/historical playback, correctly paired inference
 checkpoints, live quarantine evidence, preflight, findings Markdown and
 teacher script. Working demo, original results, faculty branch and PPT/PDF
 are unchanged. Untracked `codexmem.tx` remains untouched.
+
+## 2026-10-05: Kaggle acquisition pre-training pytest collection repaired
+
+Started from local/remote `0b41dd9d31f864242eed355f304541cfd2c7a224`.
+The uploaded notebook stopped before training because
+`tests/test_task2_acquisition.py` imported `tests.test_task2_replay.FakeTask2`;
+an unrelated installed `tests` package can shadow the repository's unmarked
+test directory. The acquisition test now defines its tiny synthetic fixture
+locally. No test was disabled and no model, data, sampler, distillation,
+selection, or experiment setting changed.
+
+Published the source fix first at `095c7b639d54eaf196a3bb324ce147a7c43c12e0`.
+The acquisition notebook now pins that exact source. Its exact repository-root
+pytest command passed: 10 tests plus four subtests. It also passed after an
+unrelated `tests` package was injected into Python's import table. Full local
+suite: 82 passed, one opt-in real-data smoke skipped, 65 subtests. Notebook
+JSON/code syntax and empty outputs were validated. No research training ran.
+
+Next: rerun the corrected notebook on Kaggle and preserve its complete
+private output for result review. Existing app, original results, faculty
+branch and PPT/PDF remain untouched. Pre-existing untracked `codexmem.tx`
+and `prepared_data_info.txt` were preserved.

@@ -1327,3 +1327,30 @@ train-plus-validation epochs (24.45 seconds/epoch at 70,576 draws). The
 After results review, scope the final app integration only then: latest and
 historical playback, paired inference checkpoints, live quarantine evidence,
 preflight, findings Markdown, and five-minute teacher script.
+
+---
+
+## 2026-10-05: acquisition notebook pytest import fix
+
+Owner: unified A+B+C on `feature/unified-novelty`. Local and remote started
+at `0b41dd9d31f864242eed355f304541cfd2c7a224`. The user-reported Kaggle
+run stopped during pytest collection, before research training. Cause:
+`tests/test_task2_acquisition.py` imported `FakeTask2` through
+`tests.test_task2_replay`; an unrelated installed package named `tests` can
+intercept that import. The small fixture is now local to the acquisition
+test module. No checks were removed.
+
+Source fix published first at `095c7b639d54eaf196a3bb324ce147a7c43c12e0`;
+`notebooks/kaggle_review2_task2_clean_acquisition.ipynb` now pins that full
+SHA. The notebook's exact command from repository root,
+`python -m pytest -q tests/test_task2_acquisition.py tests/test_task2_replay.py tests/test_full_disk_training.py`,
+passed 10 tests plus four subtests. The same selection passed after injecting
+an unrelated `tests` package into `sys.modules`. The complete local suite
+passed 82 tests plus 65 subtests, with one opt-in real-data smoke skipped.
+Notebook JSON/code syntax and unexecuted outputs were checked. No research
+training, app, PPT/PDF or main-branch work occurred. Preserve untracked
+`codexmem.tx` and `prepared_data_info.txt`.
+
+Next action: run the corrected notebook on Kaggle with the same inputs and
+experiment settings. Save all private results, then review class-wise
+acquisition and retention before final app integration.
