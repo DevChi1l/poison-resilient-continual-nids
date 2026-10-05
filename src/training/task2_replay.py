@@ -2,24 +2,30 @@
 
 from __future__ import annotations
 
-from typing import Sequence
+from typing import Mapping, Sequence
 
 import numpy as np
 
 
 class Task2ReplayView:
-    """Draw uniformly over present supplied classes, then within each class.
+    """Draw over present supplied classes, then within each class.
 
     New Task 2 rows are read and transformed by the disk view on demand.
     Replay features are already frozen, transformed float32 rows and are
     copied directly into batches; they must never be preprocessed again.
     No full feature matrix or per-row floating sampling weights are built.
+
+    The default remains uniform stochastic class sampling. An optional class
+    probability plan is converted once into deterministic integer quotas with
+    largest-remainder allocation, so an epoch records the requested exposure
+    exactly while retaining within-class sampling with replacement.
     """
 
     def __init__(self, task2_view, replay_features: np.ndarray,
                  replay_labels: np.ndarray, replay_original_ids: np.ndarray,
                  *, class_ids: Sequence[int] = tuple(range(8)),
-                 draws_per_epoch: int = 70_576) -> None:
+                 draws_per_epoch: int = 70_576,
+                 class_draw_probabilities: Mapping[int, float] | None = None) -> None:
         ids = np.asarray(class_ids)
         X = np.asarray(replay_features)
         y = np.asarray(replay_labels)
@@ -60,7 +66,52 @@ class Task2ReplayView:
                 self._buckets[class_id] = positions
         if not all(class_id in self._buckets for class_id in (5, 6, 7)):
             raise ValueError("All three new Task 2 classes must be present")
+        self.class_draw_probabilities = self._validate_probabilities(
+            class_draw_probabilities)
+        self.planned_class_draw_counts = self._allocate_class_draws(
+            self.class_draw_probabilities)
         self.last_epoch_exposure: dict | None = None
+
+    def _validate_probabilities(
+        self, values: Mapping[int, float] | None,
+    ) -> dict[int, float] | None:
+        if values is None:
+            return None
+        try:
+            probabilities = {int(key): float(value) for key, value in values.items()}
+        except (AttributeError, TypeError, ValueError) as error:
+            raise ValueError("class_draw_probabilities must map class IDs to numbers") from error
+        present = set(self.present_class_ids)
+        if (set(probabilities) != present or
+                any(not np.isfinite(value) or value <= 0
+                    for value in probabilities.values()) or
+                not np.isclose(sum(probabilities.values()), 1.0,
+                               rtol=0.0, atol=1e-12)):
+            raise ValueError(
+                "class_draw_probabilities must contain each present class exactly once "
+                "with positive finite values summing to one"
+            )
+        return {class_id: probabilities[class_id] for class_id in self.present_class_ids}
+
+    def _allocate_class_draws(
+        self, probabilities: Mapping[int, float] | None,
+    ) -> dict[int, int] | None:
+        if probabilities is None:
+            return None
+        present = self.present_class_ids
+        raw = np.asarray([probabilities[class_id] * self.draws_per_epoch
+                          for class_id in present], dtype=np.float64)
+        allocated = np.floor(raw).astype(np.int64)
+        remaining = self.draws_per_epoch - int(allocated.sum())
+        # Stable class-ID tie breaking keeps the quota calculation reproducible.
+        order = sorted(range(len(present)), key=lambda index: (-float(raw[index] % 1),
+                                                                present[index]))
+        for index in order[:remaining]:
+            allocated[index] += 1
+        if np.any(allocated < 1) or int(allocated.sum()) != self.draws_per_epoch:
+            raise ValueError("Every present class must receive at least one epoch draw")
+        return {class_id: int(allocated[index])
+                for index, class_id in enumerate(present)}
 
     def __len__(self) -> int:
         return self.draws_per_epoch
@@ -79,9 +130,20 @@ class Task2ReplayView:
         present = self.present_class_ids
         counts = {str(class_id): 0 for class_id in self.class_ids}
         unique_replay: set[int] = set()
+        unique_rows = {class_id: set() for class_id in present}
+        planned_classes = None
+        if self.planned_class_draw_counts is not None:
+            planned_classes = np.concatenate([
+                np.full(self.planned_class_draw_counts[class_id], bucket_number,
+                        dtype=np.int64)
+                for bucket_number, class_id in enumerate(present)
+            ])
+            rng.shuffle(planned_classes)
         for start in range(0, len(self), batch_size):
             size = min(batch_size, len(self) - start)
-            chosen_classes = rng.integers(0, len(present), size=size)
+            chosen_classes = (rng.integers(0, len(present), size=size)
+                              if planned_classes is None
+                              else planned_classes[start:start + size])
             X = np.empty((size, self.features.shape[1]), dtype=np.float32)
             y = np.empty(size, dtype=np.int64)
             row_ids = np.empty(size, dtype=np.int64)
@@ -99,14 +161,31 @@ class Task2ReplayView:
                 else:
                     fresh_x, fresh_y, fresh_ids = self.task2_view.batch(choices)
                     X[at], y[at], row_ids[at] = fresh_x, fresh_y, fresh_ids
+                unique_rows[class_id].update(int(value) for value in row_ids[at])
                 counts[str(class_id)] += len(at)
             yield X, y, row_ids
         self.last_epoch_exposure = {
             "epoch": epoch + 1, "sampler_seed": seed,
-            "mode": "class_balanced_present_classes_with_replacement",
-            "expected_probability_per_present_class": 1 / len(present),
+            "mode": ("class_balanced_present_classes_with_replacement"
+                     if self.planned_class_draw_counts is None
+                     else "fixed_class_quota_with_replacement"),
+            "expected_class_probabilities": {
+                str(class_id): (1 / len(present) if self.class_draw_probabilities is None
+                                else self.class_draw_probabilities[class_id])
+                for class_id in present
+            },
+            "expected_probability_per_present_class": (
+                1 / len(present) if self.class_draw_probabilities is None else None
+            ),
+            "planned_class_draw_counts": (
+                None if self.planned_class_draw_counts is None else
+                {str(key): value for key, value in self.planned_class_draw_counts.items()}
+            ),
             "present_class_ids": list(present),
             "sampled_counts": counts,
+            "unique_rows_drawn_by_class": {
+                str(class_id): len(unique_rows[class_id]) for class_id in present
+            },
             "draws": len(self),
             "stored_replay_rows": len(self.replay_labels),
             "unique_replay_rows_drawn": len(unique_replay),

@@ -103,6 +103,55 @@ class TorchResumeTests(unittest.TestCase):
             self.assertEqual(metrics["total_rows"], 4)
             self.assertEqual(best.class_ids, (0, 3))
 
+    def test_macro_f1_checkpoint_selection_is_recorded_and_resumable(self):
+        from src.models import ModelConfig, TabularTransformerClassifier
+        from src.training.full_run import train_full_disk_backed
+
+        with tempfile.TemporaryDirectory() as temporary:
+            root = Path(temporary)
+            prepared = root / "prepared"
+            prepared.mkdir()
+            raw = np.tile(np.array([[0.1, 1.0], [1.0, 2.0]], dtype=np.float32), (12, 1))
+            labels = np.tile(np.array([0, 3], dtype=np.uint8), 12)
+            splits = np.array([0] * 12 + [1] * 8 + [2] * 4, dtype=np.uint8)
+            np.save(prepared / "raw_features.npy", raw)
+            np.save(prepared / "labels.npy", labels)
+            np.save(prepared / "splits.npy", splits)
+            np.save(prepared / "row_ids.npy", np.arange(24, dtype=np.int64))
+            feature_names = ("a", "b")
+            (prepared / "features_manifest.json").write_text(json.dumps({
+                "feature_names": list(feature_names), "row_count": 24,
+            }))
+            preprocessor = fit_preprocessor(raw[:12], feature_names)
+            train = DiskBackedFlowDataset(prepared, preprocessor, partition="train",
+                                          class_ids=(0, 3))
+            validation = DiskBackedFlowDataset(prepared, preprocessor,
+                                               partition="validation", class_ids=(0, 3))
+            config = ModelConfig(num_features=2, num_classes=2, hidden_dim=8,
+                                 num_heads=2, num_layers=1, mlp_dim=16,
+                                 batch_size=4, epochs=2, early_stopping_patience=3,
+                                 device="cpu", mixed_precision=False, seed=42)
+            identity = {"input_sha256": "synthetic", "preprocessor_sha256": "synthetic"}
+            model = TabularTransformerClassifier(config, class_ids=(0, 3))
+            paused = train_full_disk_backed(
+                model, train, validation, output_dir=root / "macro",
+                data_identity=identity, max_epochs_this_call=1,
+                checkpoint_selection="validation_macro_f1", report=lambda _: None,
+            )
+            self.assertEqual(paused["checkpoint_selection"], "validation_macro_f1")
+            self.assertIn("validation_macro_f1", paused["history"]["epochs"][0])
+            fresh = TabularTransformerClassifier(config, class_ids=(0, 3))
+            resumed = train_full_disk_backed(
+                fresh, train, validation, output_dir=root / "macro",
+                data_identity=identity, resume=True,
+                checkpoint_selection="validation_macro_f1", report=lambda _: None,
+            )
+            self.assertEqual(resumed["completed_epoch"], 2)
+            manifest = json.loads((root / "macro" / "training_manifest.json").read_text())
+            self.assertEqual(manifest["checkpoint_selection"], "validation_macro_f1")
+            self.assertEqual(manifest["best_selection_value"],
+                             resumed["best_selection_value"])
+
 
 if __name__ == "__main__":
     unittest.main()

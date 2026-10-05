@@ -97,10 +97,13 @@ For full static training, `src/training/full_run.py` adds
 `train_full_disk_backed(model, train, validation, output_dir, data_identity,
 resume=False, ...)`. It uses full bounded training and validation views and
 atomically saves an authoritative `latest.pt` after each epoch, plus a
-loadable validation-loss-selected `best.pt`. Latest records model, optimizer,
+loadable `best.pt`. Validation loss remains the default checkpoint criterion;
+the optional `checkpoint_selection='validation_macro_f1'` selects and applies
+patience by full clean-validation macro-F1 instead. Per-epoch history records
+validation loss, accuracy, macro-F1, and balanced accuracy. Latest records model, optimizer,
 scaler, Python/NumPy/Torch CPU/CUDA RNG states, completed epoch, history,
 best state, and patience. Resume rejects changed model configuration, class
-IDs, prepared-data identity, or runtime. An interrupted epoch restarts from
+IDs, prepared-data identity, selection rule, or runtime. An interrupted epoch restarts from
 its previous completed boundary; no mid-epoch resume is claimed. The
 existing small-array `fit()` and preparation APIs are unchanged.
 
@@ -127,14 +130,19 @@ run Task 2 or consume replay in Task 1 training.
 
 For the later full-row Task 2 comparison, `src/training/task2_replay.py`
 exposes `Task2ReplayView(task2_view, replay_features, supplied_labels,
-replay_original_ids, draws_per_epoch=70576)`. The new-class training rows
+replay_original_ids, draws_per_epoch=70576, class_draw_probabilities=None)`.
+The new-class training rows
 remain disk-backed and are transformed once on demand; the frozen old replay
 features are already transformed and are copied into bounded batches without
 another preprocessing pass. Every epoch samples uniformly across present
 supplied classes, then uniformly within class, with replacement and a seed
-that advances by epoch. All conditions use exactly 70,576 draws regardless
-of filtering; stored replay still has at most 500 rows. The view reports
-actual class draws and unique replay examples. The existing durable trainer
+that advances by epoch. When explicit probabilities are supplied, they must
+cover every present class and sum to one; largest-remainder allocation creates
+fixed integer class quotas, then seeded shuffling and within-class replacement
+produce the epoch. This supports exact exposure studies without changing the
+default sampler. All conditions can use exactly 70,576 draws regardless of
+stored replay size. The view reports planned and actual class draws plus
+actual unique examples drawn per class. The existing durable trainer
 records this optional exposure report per epoch without changing its
 ordinary disk-view path or checkpoint/resume contract.
 

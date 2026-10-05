@@ -12,6 +12,7 @@ from typing import Any, Callable
 
 import numpy as np
 
+from ..evaluation.streaming import ConfusionAccumulator
 from .disk_backed import DiskBackedFlowDataset
 
 
@@ -41,9 +42,14 @@ def _runtime_signature(torch: Any, model: Any) -> dict:
 
 
 def _resume_header(config: dict, class_ids: tuple[int, ...],
-                   data_identity: dict, runtime: dict) -> dict:
-    return {"format_version": 1, "config": config, "class_ids": list(class_ids),
-            "data_identity": data_identity, "runtime": runtime}
+                   data_identity: dict, runtime: dict,
+                   checkpoint_selection: str = "validation_loss") -> dict:
+    header = {"format_version": 1, "config": config, "class_ids": list(class_ids),
+              "data_identity": data_identity, "runtime": runtime}
+    # Preserve exact compatibility with existing loss-selected checkpoints.
+    if checkpoint_selection != "validation_loss":
+        header["checkpoint_selection"] = checkpoint_selection
+    return header
 
 
 def validate_resume_header(saved: dict, expected: dict) -> None:
@@ -79,10 +85,13 @@ def _sync(torch: Any, model: Any) -> None:
 
 
 def _best_checkpoint(model: Any, best_state: dict, best_epoch: int,
-                     identity: dict, config: dict) -> dict:
+                     identity: dict, config: dict, checkpoint_selection: str,
+                     best_selection_value: float) -> dict:
     return {"config": config, "class_ids": list(model.class_ids),
             "state_dict": best_state, "best_epoch": best_epoch,
-            "data_identity": identity}
+            "data_identity": identity,
+            "checkpoint_selection": checkpoint_selection,
+            "best_selection_value": best_selection_value}
 
 
 def train_full_disk_backed(
@@ -96,6 +105,7 @@ def train_full_disk_backed(
     max_epochs_this_call: int | None = None,
     progress_every_batches: int = 1000,
     report: Callable[[str], None] = print,
+    checkpoint_selection: str = "validation_loss",
 ) -> dict:
     """Train full partitions with atomic latest/best checkpoints each epoch.
 
@@ -118,6 +128,8 @@ def train_full_disk_backed(
         raise ValueError("data_identity must identify the prepared input and preprocessing")
     if progress_every_batches < 1 or (max_epochs_this_call is not None and max_epochs_this_call < 1):
         raise ValueError("Progress interval and optional epoch limit must be positive")
+    if checkpoint_selection not in ("validation_loss", "validation_macro_f1"):
+        raise ValueError("checkpoint_selection must be validation_loss or validation_macro_f1")
 
     folder = Path(output_dir)
     folder.mkdir(parents=True, exist_ok=True)
@@ -127,7 +139,8 @@ def train_full_disk_backed(
     manifest_path = folder / "training_manifest.json"
     config = asdict(model.config)
     runtime = _runtime_signature(torch, model)
-    header = _resume_header(config, model.class_ids, data_identity, runtime)
+    header = _resume_header(config, model.class_ids, data_identity, runtime,
+                            checkpoint_selection)
     optimizer = torch.optim.AdamW(model.network.parameters(), lr=model.config.learning_rate,
                                   weight_decay=model.config.weight_decay)
     criterion = torch.nn.CrossEntropyLoss()
@@ -147,6 +160,8 @@ def train_full_disk_backed(
         history = checkpoint["history"]
         completed = int(checkpoint["completed_epoch"])
         best_loss = float(checkpoint["best_validation_loss"])
+        best_selection_value = float(checkpoint.get(
+            "best_selection_value", -best_loss))
         best_epoch = checkpoint["best_epoch"]
         best_state = checkpoint["best_state_dict"]
         stale = int(checkpoint["stale_epochs"])
@@ -158,14 +173,18 @@ def train_full_disk_backed(
         # Latest is authoritative; also repairs a crash between the two saves.
         if best_state is not None:
             _save_torch(best_path, _best_checkpoint(model, best_state, best_epoch,
-                                                    data_identity, config), torch)
+                                                    data_identity, config,
+                                                    checkpoint_selection,
+                                                    best_selection_value), torch)
     else:
         if latest_path.exists() or best_path.exists():
             raise FileExistsError("Training checkpoints exist; request resume explicitly")
         history = {"epochs": [], "optimizer_steps": 0, "training_rows_processed": 0,
-                   "validation_rows_processed": 0}
+                   "validation_rows_processed": 0,
+                   "checkpoint_selection": checkpoint_selection}
         completed = 0
         best_loss = float("inf")
+        best_selection_value = float("-inf")
         best_epoch = None
         best_state = None
         stale = 0
@@ -219,6 +238,7 @@ def train_full_disk_backed(
         validation_rows = 0
         val_loss_sum = 0.0
         val_correct = 0
+        validation_confusion = ConfusionAccumulator(model.class_ids)
         with torch.no_grad():
             for start in range(0, len(validation), model.config.batch_size):
                 x, labels, _ = validation.batch(
@@ -232,14 +252,22 @@ def train_full_disk_backed(
                 if not torch.isfinite(batch_loss):
                     raise FloatingPointError("Non-finite validation loss")
                 val_loss_sum += float(batch_loss.item()) * len(labels)
-                val_correct += int((logits.argmax(dim=1) == targets).sum().item())
+                predicted_columns = logits.argmax(dim=1)
+                val_correct += int((predicted_columns == targets).sum().item())
+                predictions = np.asarray(model.class_ids, dtype=np.int64)[
+                    predicted_columns.cpu().numpy()]
+                validation_confusion.update(labels, predictions)
                 validation_rows += len(labels)
         _sync(torch, model)
         validation_seconds = perf_counter() - val_start
         if validation_rows != len(validation):
             raise RuntimeError("Validation did not cover the full partition")
         val_loss = val_loss_sum / validation_rows
-        if val_loss < best_loss:
+        validation_metrics = validation_confusion.metrics()
+        selection_value = (-val_loss if checkpoint_selection == "validation_loss"
+                           else validation_metrics["macro_f1"])
+        if selection_value > best_selection_value:
+            best_selection_value = selection_value
             best_loss = val_loss
             best_epoch = epoch + 1
             best_state = _cpu_state(model.network)
@@ -252,6 +280,8 @@ def train_full_disk_backed(
         epoch_record = {
             "epoch": epoch + 1, "train_loss": loss_sum / actual_rows,
             "validation_loss": val_loss, "validation_accuracy": val_correct / validation_rows,
+            "validation_macro_f1": validation_metrics["macro_f1"],
+            "validation_balanced_accuracy": validation_metrics["balanced_accuracy"],
             "train_rows": actual_rows, "validation_rows": validation_rows,
             "optimizer_steps": steps, "cumulative_optimizer_steps": history["optimizer_steps"],
             "train_seconds": train_seconds, "validation_seconds": validation_seconds,
@@ -273,16 +303,20 @@ def train_full_disk_backed(
             "scaler_state_dict": scaler.state_dict(),
             "rng": _rng_snapshot(torch), "history": history,
             "best_validation_loss": best_loss, "best_epoch": best_epoch,
+            "best_selection_value": best_selection_value,
             "best_state_dict": best_state, "stale_epochs": stale,
             "early_stopped": early_stopped,
         }
         _save_torch(latest_path, checkpoint, torch)
         _save_torch(best_path, _best_checkpoint(model, best_state, best_epoch,
-                                                data_identity, config), torch)
+                                                data_identity, config,
+                                                checkpoint_selection,
+                                                best_selection_value), torch)
         _write_json(history_path, history)
         _write_json(manifest_path, {
             **header, "completed_epoch": completed, "best_epoch": best_epoch,
             "best_validation_loss": best_loss, "stale_epochs": stale,
+            "best_selection_value": best_selection_value,
             "early_stopped": early_stopped, "latest_checkpoint": latest_path.name,
             "best_checkpoint": best_path.name,
             "measured_total_train_seconds": sum(row["train_seconds"] for row in history["epochs"]),
@@ -293,6 +327,7 @@ def train_full_disk_backed(
         remaining_hours = ((target - completed) * observed_epoch_seconds / completed) / 3600
         report(f"epoch {completed}: train_loss={loss_sum / actual_rows:.6f}, "
                f"full_val_loss={val_loss:.6f}, full_val_acc={val_correct / validation_rows:.4f}; "
+               f"full_val_macro_f1={validation_metrics['macro_f1']:.4f}; "
                f"train={train_seconds:.1f}s, val={validation_seconds:.1f}s, "
                f"rows={actual_rows:,}/{validation_rows:,}, steps={steps}; "
                f"measured remaining estimate={remaining_hours:.2f}h; best={best_epoch}")
@@ -301,6 +336,8 @@ def train_full_disk_backed(
 
     return {"completed_epoch": completed, "best_epoch": best_epoch,
             "best_validation_loss": best_loss, "early_stopped": early_stopped,
+            "checkpoint_selection": checkpoint_selection,
+            "best_selection_value": best_selection_value,
             "history": history, "latest_checkpoint": str(latest_path),
             "best_checkpoint": str(best_path),
             "paused": completed < target and not early_stopped}

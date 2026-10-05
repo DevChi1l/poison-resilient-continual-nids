@@ -69,6 +69,37 @@ class Task2ReplayTests(unittest.TestCase):
             Task2ReplayView(self.task2, self.replay_x[:0], self.replay_y[:0],
                             self.replay_ids[:0], draws_per_epoch=10)
 
+    def test_fixed_probability_plan_has_exact_deterministic_class_quotas(self):
+        self.replay_ids[2] = 2
+        probabilities = {0: 0.20, 1: 0.30, 5: 0.10, 6: 0.15, 7: 0.25}
+        view = Task2ReplayView(
+            self.task2, self.replay_x, self.replay_y, self.replay_ids,
+            draws_per_epoch=100, class_draw_probabilities=probabilities,
+        )
+        self.assertEqual(view.planned_class_draw_counts,
+                         {0: 20, 1: 30, 5: 10, 6: 15, 7: 25})
+        first = list(view.iter_epoch(batch_size=17, seed=42, epoch=0))
+        first_ids = np.concatenate([batch[2] for batch in first])
+        exposure = view.last_epoch_exposure
+        self.assertEqual(exposure["sampled_counts"],
+                         {"0": 20, "1": 30, "2": 0, "3": 0,
+                          "4": 0, "5": 10, "6": 15, "7": 25})
+        self.assertEqual(exposure["planned_class_draw_counts"],
+                         {"0": 20, "1": 30, "5": 10, "6": 15, "7": 25})
+        self.assertEqual(exposure["mode"], "fixed_class_quota_with_replacement")
+        self.assertEqual(sum(exposure["unique_rows_drawn_by_class"].values()),
+                         len(np.unique(first_ids)))
+        repeated = list(view.iter_epoch(batch_size=17, seed=42, epoch=0))
+        np.testing.assert_array_equal(
+            first_ids, np.concatenate([batch[2] for batch in repeated]))
+
+        with self.assertRaises(ValueError):
+            Task2ReplayView(
+                self.task2, self.replay_x, self.replay_y, self.replay_ids,
+                draws_per_epoch=100,
+                class_draw_probabilities={0: 0.5, 1: 0.5},
+            )
+
 
 if __name__ == "__main__":
     unittest.main()
