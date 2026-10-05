@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-06 (calibration reviewed; clean discrimination notebook prepared)
+Last updated: 2026-10-06 (discrimination results reviewed; one XGBoost diagnostic prepared locally)
 
 ## Current state
 
@@ -965,3 +965,44 @@ and empty outputs checked. Original artifacts, demo, poisoning/gate, faculty
 branch, PPT/PDF and pre-existing untracked files remain untouched. Next:
 run the notebook on Kaggle, preserve the whole private output, and review
 Infiltration precision/recall and Benign FPR before any app changes.
+
+## 2026-10-06: discrimination failed eligibility; one joint-training diagnostic prepared
+
+Local HEAD remained `495ea48ff428f2895abb91c110ff353ef5fcb1e5` on
+`feature/unified-novelty`. The GitHub connector confirmed the remote branch
+was identical before edits; shell DNS could not resolve GitHub. The uploaded
+`data/train2_infiltration_disc/results.zip` passed CRC and unsafe-member
+checks; the executed notebook has no error output. See the immutable artifact
+hashes and compact record in
+`docs/evidence/task2_discrimination_results_summary_20261006.json`.
+
+Both clean Transformer schedules completed 12 epochs and failed separate
+new-class-recall eligibility. Full validation A: accuracy 95.4347%, macro-F1
+69.6148%, Infiltration recall 23.5786%, Benign FPR 4.2673%, old/new accuracy
+96.1870%/27.2975%. B: accuracy 96.8858%, macro-F1 69.6472%, Infiltration
+recall 16.4734%, Benign FPR 2.3451%, old/new accuracy 97.7283%/20.5714%.
+Selection was null and **no test evaluation occurred**. The intended
+Benign/Infiltration tradeoff remains unresolved; do not call it successful
+eight-class continual learning.
+
+Locally prepared one XGBoost GPU-hist joint-training diagnostic, not another
+Transformer sweep: `scripts/run_task2_xgboost_baseline.py`, a small protocol
+test, and `notebooks/kaggle_review2_task2_xgboost_diagnostic.ipynb`. It
+requires the exact saved 140,000 training-only replay IDs/features/labels and
+all 70,076 new training rows, the same 54 features/frozen Task1 continual
+preprocessor, and the fixed validation/test splits. It predeclares one seed-42
+configuration, train-only capped-sqrt class weights, at most 500 rounds and
+weighted-validation-logloss early stopping after 30 stale rounds. It checks
+installed XGBoost CUDA compatibility and refuses silent CPU fallback or
+automatic upgrades. It saves model/provenance/history, full per-class metrics
+and a validation lock before one test pass. Comparison with Transformer A/B
+is diagnostic only, never continual-learning or poisoning-defense evidence.
+
+Full local suite: 91 passed, one opt-in test skipped, 65 subtests; no local
+research training. Publication is **blocked by environment permissions**:
+`.git` is read-only (`index.lock: Read-only file system`), and the connected
+GitHub write API requires approval while approval policy is `never`. New
+source/notebook/docs remain local uncommitted; their hashes are pinned in the
+notebook, but Kaggle execution must wait until the exact files are published.
+Do not mislabel the current branch as pushed. Existing app, original ZIP,
+faculty branch and PPT/PDF files remain untouched.

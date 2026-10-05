@@ -2419,3 +2419,76 @@ has **not** run, so this is only a measured-basis estimate. Full local suite
 passed 88 tests, one opt-in real-data smoke skipped, 65 subtests; notebook
 syntax and empty outputs passed. App, poisoning, gate, PPT/PDF and original
 artifacts were unchanged.
+
+---
+
+## Final clean discrimination evidence and one tree diagnostic (2026-10-06)
+
+The executed `infiltration-discrimination.ipynb` finished without error
+outputs. The original `results.zip` SHA-256 is
+`83c3074774d3a50806d5763f3859b31bf580cad0dfb4da2270bb0f2108719381`;
+CRC, member paths, encryption and symlinks passed safe inspection, and no
+archived code was executed. Both Transformer arms completed 12 epochs, from
+the fixed Task1/frozen-preprocessing protocol. A validation accuracy,
+macro-F1, Infiltration recall: **95.43%, 69.61%, 23.58%**. B: **96.89%,
+69.65%, 16.47%**. A/B Benign FPR: 4.27%/2.35%; old accuracy:
+96.19%/97.73%; new accuracy: 27.30%/20.57%. Both failed the separately
+declared >=50% Infiltration-recall requirement. No arm was selected and no
+test evaluation occurred. All exact metrics and replay hashes are recorded
+in `docs/evidence/task2_discrimination_results_summary_20261006.json`;
+original private artifacts remain untouched. This remains incomplete
+eight-class continual learning despite high aggregate accuracy.
+
+The final bounded diagnostic is one joint-training XGBoost configuration,
+not another Transformer schedule. Its baseline runner reuses the exact
+verified 140,000 old replay original IDs and 70,076 new-class training rows,
+the fixed 54-feature order, and the Task1 frozen continual fit. It checks
+prepared arrays, Task1 checkpoint, replay features/labels/IDs, and split
+membership before training. At most 4,096 rows are transformed per feature
+batch into disk-backed matrices. No validation/test row enters training or
+weight fitting. The class weight for training class `i` is proportional to
+`min(5, sqrt(max_train_count / train_count[i]))`, normalized to mean one.
+The same train-derived mapping weights validation logloss for early stopping;
+reported validation/test precision/recall/F1 and confusion metrics are
+unweighted. One GPU-hist multiclass model uses depth 6, eta .05,
+subsample/colsample .8, max bin 256, seed 42, maximum 500 rounds, and 30
+stale-round early stopping. The runner checks the installed XGBoost CUDA
+build and probes one synthetic GPU tree; no automatic package upgrade or
+silent CPU fallback. The validation-selected model JSON is saved and hashed
+in `selection_lock.json` before a single fixed-test inference pass. The
+output records full per-class precision/recall/F1, macro-F1, Benign FPR,
+old/new accuracy, training history/provenance and both historical Transformer
+validation reports. Practical targets remain FPR <=5%, old accuracy >=90%,
+and each new class recall >=50%; failing targets must be stated, not hidden
+behind accuracy or mean new-class recall.
+
+This comparator follows the methodological idea of a strong tree baseline
+from [tabular-benchmark](https://github.com/LeoGrin/tabular-benchmark) and
+label-quality caution from the authors' [WTMC2021 CICIDS2017 case study](https://intrusion-detection.distrinet-research.be/WTMC2021/).
+Neither source establishes the identity or correctness of this project's
+combined collection. XGBoost sees all eight training labels jointly; any
+strong result would diagnose feature/label separability under this protocol,
+not demonstrate continual learning, forgetting prevention, or poisoning
+resilience. Prior test evidence was inspected, so the single forthcoming
+test report is an exploratory follow-up, not an untouched final benchmark.
+
+The Kaggle notebook names the three complete private inputs and pins the
+verified base source commit plus exact new runner/test file SHA-256s. It is
+locally prepared but cannot run from GitHub until those files are published:
+this session's `.git` is read-only and connected GitHub writes require
+unavailable approval. Local focused tests passed 12; full suite passed 91,
+one opt-in skipped, 65 subtests. Notebook syntax/empty outputs and file
+hashes passed. XGBoost is absent locally, so no local GPU validation or
+research training was performed. The observed Transformer study took ~6.1
+minutes per arm of train+validation time, but no XGBoost runtime is measured;
+reserve 30–60 Kaggle GPU minutes as a high-uncertainty planning window.
+
+After the single benchmark, freeze its validation/test artifacts, publish an
+honest comparison, and stop tuning. If each new class still fails, report
+the research limitation and the observed Benign/Infiltration tradeoff. If
+XGBoost meets the practical targets, present it only as a joint-training
+diagnostic alongside the still-unsolved Transformer continual result. The
+final app update should play back only verified evidence and pair every
+checkpoint with its own preprocessing; quarantine remains training-data
+review, not live packet blocking. No PPT/PDF edit or UI change belongs to
+this benchmark preparation task.

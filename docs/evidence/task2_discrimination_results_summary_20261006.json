@@ -1,0 +1,56 @@
+{
+  "status": "observed completed clean Transformer study; neither arm eligible; no test evaluation",
+  "original_zip": "data/train2_infiltration_disc/results.zip",
+  "original_zip_sha256": "83c3074774d3a50806d5763f3859b31bf580cad0dfb4da2270bb0f2108719381",
+  "executed_notebook": "data/train2_infiltration_disc/infiltration-discrimination.ipynb",
+  "executed_notebook_sha256": "39e8a88d1716f9c20493392bbafc0350397e2ab7b88934da8be263bbe86eb835",
+  "safe_inspection": "220 ZIP members, CRC/path/encryption/symlink checks passed; read named JSON/NPY only; no archived code executed; executed notebook has no error outputs",
+  "source_sha": "6ffb310a0b866986bd7063d5b3a485f0278dd39d",
+  "replay": {
+    "rows": 140000,
+    "distinct_original_training_rows": 140000,
+    "class_counts_0_to_4": [100000, 10000, 10000, 10000, 10000],
+    "ids_sha256": "1a5c7c0464a9fac70aab121441e8d2cb713ffe87b34403e669642eb18c3253ad",
+    "features_sha256": "a8b0040bf570d1bbf9668c2e90e26c76332e9d13019e9a217207ad9ff5104acb",
+    "labels_sha256": "f0bae48cf17f0e609d4e44dcfc8b6b42e8b3aa94c134b1c7c89dc1387da22745"
+  },
+  "validation_rows": 1375139,
+  "arms": {
+    "A_old70_inf20": {
+      "completed_epochs": 12,
+      "best_epoch": 10,
+      "accuracy": 0.9543471605415889,
+      "macro_f1": 0.6961478683127547,
+      "benign_fpr": 0.042673497048506905,
+      "old_accuracy": 0.9618696250265601,
+      "new_accuracy": 0.2729754928076718,
+      "infiltration_precision": 0.07926195426195426,
+      "infiltration_recall": 0.2357860707006817,
+      "infiltration_f1": 0.11864137065261596,
+      "eligible": false,
+      "measured_train_seconds": 127.81251907499995,
+      "measured_validation_seconds": 236.29826944799981
+    },
+    "B_old75_inf15": {
+      "completed_epochs": 12,
+      "best_epoch": 8,
+      "accuracy": 0.9688576936586047,
+      "macro_f1": 0.6964716563211448,
+      "benign_fpr": 0.023451451811761257,
+      "old_accuracy": 0.9772829369108529,
+      "new_accuracy": 0.20571390516782098,
+      "infiltration_precision": 0.11633331678991513,
+      "infiltration_recall": 0.16473399395600535,
+      "infiltration_f1": 0.13636628076095175,
+      "eligible": false,
+      "measured_train_seconds": 128.5567611670001,
+      "measured_validation_seconds": 239.06458768000005
+    }
+  },
+  "selection_lock": {
+    "selected_arm": null,
+    "eligible_count": 0,
+    "test_evaluated": false
+  },
+  "interpretation": "Both arms preserved old performance and achieved low-to-moderate Benign FPR, but neither reached 50% Infiltration recall. No successful eight-class continual-learning claim."
+}

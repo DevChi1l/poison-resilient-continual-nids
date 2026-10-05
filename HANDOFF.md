@@ -1472,3 +1472,64 @@ Full local suite passed 88 tests plus 65 subtests, with one opt-in real-data
 smoke skipped. Preserve original results, demo, poisoning/gate code,
 faculty branch and PPT/PDF. Next: run the notebook and review results
 before touching UI or poisoning.
+
+---
+
+## 2026-10-06: final bounded XGBoost diagnostic handoff
+
+Branch `feature/unified-novelty`, local and connected-remote starting HEAD
+`495ea48ff428f2895abb91c110ff353ef5fcb1e5`. Safely inspected private
+`data/train2_infiltration_disc/results.zip` and executed notebook; ZIP SHA
+`83c3074774d3a50806d5763f3859b31bf580cad0dfb4da2270bb0f2108719381`.
+No archived code executed. Both 12-epoch Transformer arms failed validation
+eligibility: A accuracy/macro-F1/Infiltration recall
+95.4347%/69.6148%/23.5786%; B 96.8858%/69.6472%/16.4734%. Their Benign
+FPR was 4.2673%/2.3451%, old accuracy 96.1870%/97.7283%, new accuracy
+27.2975%/20.5714%. `selection_lock.json` selected neither; no test was run.
+See `docs/evidence/task2_discrimination_results_summary_20261006.json`.
+
+Prepared, but **not committed or pushed**, one joint-training GPU XGBoost
+baseline in `scripts/run_task2_xgboost_baseline.py`, protocol tests in
+`tests/test_task2_xgboost_baseline.py`, and one Kaggle notebook in
+`notebooks/kaggle_review2_task2_xgboost_diagnostic.ipynb`. The notebook pins
+base commit `495ea48...` and the exact runner/test SHA-256s, and fails closed
+until those files are published on `feature/unified-novelty`. It accepts the
+complete prepared folder, Task1 folder, and original discrimination ZIP or
+extracted study folder. It verifies hashes and exact 140,000 replay IDs,
+then joins 70,076 training-only new rows. One locked policy: frozen 54-feature
+preprocessing, sqrt inverse-frequency weights from *training counts only*
+capped at five and mean-one, XGBoost GPU hist depth 6/eta .05, seed 42, at
+most 500 rounds, weighted clean-validation mlogloss early stopping patience
+30. It refuses incompatible installed CUDA builds or CPU fallback; no blind
+upgrade. The output keeps a selected model, provenance, history, full
+per-class validation/test metrics, A/B validation comparison, and a durable
+lock before the one fixed-test pass. This is a joint-training diagnostic, not
+continual learning or poisoning defense. No XGBoost result exists yet.
+
+Verification: focused 12 tests passed; full local suite 91 passed, one
+opt-in skipped, 65 subtests. Notebook JSON/code syntax, empty outputs and
+runner/test hashes were checked. XGBoost is not installed locally, so GPU
+execution/compatibility remain unavailable here. The prior two-arm run
+measured ~6.1 minutes per arm for training plus validation, but this does
+not measure XGBoost; reserve roughly 30–60 Kaggle GPU minutes for its capped
+single run and data hashing, with high uncertainty.
+
+Publication blocker: session filesystem mounts `.git` read-only, preventing
+`git add`/commit (`index.lock: Read-only file system`). GitHub write connector
+also requires approval while approval policy is `never`; shell GitHub DNS is
+unavailable. Do not claim a push. When normal Git write access is restored,
+review and commit only the runner, test, notebook, evidence summary, and
+status/walkthrough/handoff changes, push unified, then verify the
+remote file hashes before Kaggle execution. Preserve pre-existing untracked
+`codexmem.tx`/`prepared_data_info.txt`, working app, original artifacts,
+faculty branch, PPT/PDF, and all prior runs.
+
+Closeout after the single benchmark: inspect complete validation and the
+one fixed-test report without further tuning; state plainly whether each
+new class, Benign FPR and old retention meet targets. Freeze and archive the
+observed comparison. Update the demo's saved-result playback only after
+evidence review (with correct inference artifact pairings); keep quarantine
+as training-data review. Final Markdown/teacher narrative must separate
+Transformer continual/poisoning evidence from joint XGBoost diagnosis and
+include weak Infiltration detection if it persists. No further open-ended
+sampling sweep or architecture replacement is planned.
