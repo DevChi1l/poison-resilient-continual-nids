@@ -10,9 +10,9 @@ clean-baseline, static poisoning, clean continual, replay-label mitigation,
 balanced replay exposure, and held-out confidence novelty comparisons ran
 on bounded subsets. Full-row preparation, subset throughput measurement,
 and a full clean static eight-class run completed on Kaggle. The
-five-class full Task 1 foundation also ran; the full Task 2 targeted replay
-comparison is prepared but has not run;
-the one-command pipeline remains incomplete. Developers A+B+C are one owner;
+five-class full Task 1 foundation and the full three-arm Task 2 targeted replay
+comparison also ran. A local artifact-backed demonstration is implemented;
+the one-command training pipeline remains incomplete. Developers A+B+C are one owner;
 interface changes still must be documented before integration.
 
 ```text
@@ -28,6 +28,29 @@ Unified team: Transformer model <---- future replay batches
               v
 Unified team: one-command integration and saved result manifest
 ```
+
+## Local demonstration boundary
+
+`streamlit_app.py` uses `src/demo/` as an adapter layer and does not change the
+model, preprocessing, poisoning, mitigation, or evaluation algorithms.
+`configs/demo_artifacts.example.json` binds each checkpoint to an expected
+SHA-256, preprocessing SHA-256/scope, and explicit class mapping. Static
+eight-class inference accepts only the static fit state. The five-class Task 1
+teacher accepts only the continual fit state; only this model may use its saved
+max-confidence novelty cutoff.
+
+Uploaded CSV/Parquet is memory-only and capped before inference. Feature
+columns must exactly match the saved 54-name order. `src/demo/quarantine.py`
+persists gate-rejected rows to an ignored SQLite database with model identity,
+supplied label, score, threshold, payload, status, and append-only decision
+history. A release decision does not call training. Simulator ground-truth
+attack masks are returned only in a separate experiment-audit object and are
+never written to the operational queue.
+
+`src/demo/results.py` validates the original Task 2 ZIP hash and member paths,
+then reads only named JSON evidence. It never imports the repository snapshot
+or unpickles archived checkpoints. The continual view is therefore saved
+experiment playback, not an execution path.
 
 ## Canonical data contract
 

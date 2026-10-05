@@ -1919,3 +1919,103 @@ Likely faculty questions:
   same validation-loss patience can stop them at different epochs.
 - **Can a positive rejection rate prove a useful defense?** No; downstream
   old/new accuracy, false positives and forgetting must be checked too.
+
+---
+
+## Full Task 2 evidence and local demonstration (2026-10-05)
+
+### Step 1: inspect the returned archive without trusting its code
+
+The supplied `data/task2/results.zip` hashes to
+`0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e`.
+It contains the result folder plus a repository snapshot, so we did not import
+or execute anything from the archive. We checked all 194 member paths,
+symlink/encryption flags and compressed-data integrity, then read only the
+named JSON evidence and numeric NPZ metadata with pickle disabled. The archive
+remains unchanged and outside Git.
+
+The saved Task 1-before accuracy/macro-F1/Benign-FPR are
+`0.9925734439413022`/`0.981162951652861`/`0.004171892742372403`.
+Clean/poisoned/filtered combined accuracy is
+`0.6010047020872148`/`0.44913586603196487`/`0.6077218656509111`; macro-F1
+is `0.5664584687018178`/`0.5379282266745713`/`0.5578505675817005`; Benign
+FPR is `0.4989118011592611`/`0.6885997951625712`/`0.4666276411782605`.
+All arms completed six epochs, selected epoch one, used 1,656 steps, and began
+from the same expanded-weight hash. The gate rejected 80/80 simulated poison
+rows and 42/420 clean rows, retaining 378.
+
+Aggregate improvement is not uniform robustness. The filtered arm's DoS
+recall is `0.6072884683142901`, versus `0.9605879095988322` in the poisoned
+unfiltered arm, and its old-attack-to-Benign count rises from 3,641 to 6,856.
+This is one seed and one fixed targeted-label threat model. The compact index
+is `docs/evidence/task2_targeted_summary.json`; the original JSON in the ZIP is
+authoritative.
+
+### Step 2: bind inference to real, matching artifacts
+
+`configs/demo_artifacts.example.json` assigns each checkpoint an identity,
+expected SHA-256, fit-state path/hash/scope and explicit class names. The
+eight-class clean static model is the default and can use only the static
+preprocessor. The five-class Task 1 teacher can use only the continual
+preprocessor. Its saved max-confidence threshold is explicitly a weak novelty
+baseline and is never applied after head expansion or to the static model.
+
+`src/demo/inference.py` reads at most 2,000 CSV rows or rejects Parquet from
+metadata when it exceeds the bound. It requires the exact saved 54-column
+feature order, excludes only the user-selected optional broad-label column,
+applies the paired frozen state, loads the checkpoint on CPU, verifies width
+and class IDs, and reports real probabilities/predictions plus optional known-
+class metrics. No prediction is synthesized when PyTorch/artifacts are absent.
+
+### Step 3: make quarantine persistent without turning release into training
+
+The poisoning view loads the real 500-row replay NPZ with `allow_pickle=False`,
+uses the existing seeded targeted flip (old attacks 1–4 to Benign 0), obtains
+probabilities from the frozen Task 1 teacher, and applies the existing label-
+consistency gate at the saved clean-validation cutoff. The queue at
+`.local/nids-demo/quarantine.sqlite3` stores original ID, supplied label,
+score, threshold, model identity, row payload, status and timestamps.
+
+Every insertion creates a `quarantined` history row. A named reviewer can
+finalize a pending row as `rejected` or `released` with a required reason;
+final decisions cannot be overwritten. Release updates SQLite only. It does
+not call model fitting or authorize later training. The simulator's changed-
+row mask is kept out of SQLite and appears only inside the separately labelled
+experiment audit. Repeating the same demo is idempotent.
+
+### Step 4: separate saved playback from computation
+
+`src/demo/results.py` hashes and validates the ZIP, rejects traversal paths,
+symlinks, encrypted entries and oversized JSON, and reads only the expected
+comparison/calibration/gate/combined-metric members. The continual UI states
+that it is saved experiment playback. It displays the Task 1 baseline, all
+three combined results, signed forgetting, per-class precision/recall/F1,
+row-normalized confusion matrices and the gate trade-off without loading a
+Task 2 checkpoint or rerunning training.
+
+### Step 5: run and verify locally
+
+Full setup and artifact requirements are in `docs/LOCAL_DEMO.md`. Launch with:
+
+```bash
+.venv-demo/bin/streamlit run streamlit_app.py -- \
+  --config configs/demo_artifacts.example.json
+```
+
+The short teacher-only path is `scripts/demo_teacher_quarantine.py`; it also
+performs inference and queue insertion only. Pure logic tests passed for schema
+failures, preprocessing-scope separation, targeted gate determinism, queue
+persistence/idempotence/history, archive safety and normalized confusion.
+Streamlit AppTest rendered all three views without exceptions using the real
+saved ZIP. PyTorch 2.11.0+cpu then loaded both hash-checked real checkpoints.
+The static model used its static fit state and one actual bounded Parquet row,
+returning a normalized `(1, 8)` probability array. The Task 1 teacher used its
+continual fit state and all 500 supplied replay rows, returning normalized
+`(500, 5)` probabilities. Applying the saved threshold to those live scores
+exactly reproduced 80 poisoned rejects, 42 clean rejects and 378 retained.
+The teacher CLI wrote 122 rejected rows to a temporary SQLite queue. The full
+unittest suite ran 67 tests: 66 passed, and only the explicitly opt-in
+real-data training smoke was skipped. Scoped `pytest -q` also passed 70 tests
+and 65 subtests with that one skip. The app and CLI never call `fit`; only the
+repository's existing tiny synthetic CPU fit tests ran. No research-data
+training or new experiment started.

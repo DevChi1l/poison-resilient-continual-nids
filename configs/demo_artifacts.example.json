@@ -1,0 +1,49 @@
+{
+  "base_dir": "..",
+  "max_inference_rows": 2000,
+  "default_model": "clean_static",
+  "task1_teacher": "task1_teacher",
+  "models": {
+    "clean_static": {
+      "display_name": "Clean static Transformer (8 classes)",
+      "identity": "full_clean_20261003T045146_553311Z:best.pt@epoch14",
+      "checkpoint": "data/full-train-v2/results/full_clean_20261003T045146_553311Z/best.pt",
+      "checkpoint_sha256": "215dc8224e6d78034893513d2f200a39a99974583d3ac746f25465f36d307ea0",
+      "preprocessor": "data/preparation/preprocessing_static.json",
+      "preprocessor_sha256": "c2b6cd64ec20407facf6763a1098fee77c481521a5fd3dd0c520aa34ffb4855f",
+      "preprocessing_scope": "static",
+      "class_names": [
+        "Benign",
+        "DDoS",
+        "DoS",
+        "Botnet",
+        "Bruteforce",
+        "Infiltration",
+        "Webattack",
+        "Portscan"
+      ]
+    },
+    "task1_teacher": {
+      "display_name": "Clean Task 1 teacher (5 classes)",
+      "identity": "full_task1_20261003T074354_763068Z:best.pt@epoch9",
+      "checkpoint": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/best.pt",
+      "checkpoint_sha256": "aed830e152d61525c641a95ac8eded661caa8c318d9aed910abb954782454de6",
+      "preprocessor": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/preprocessing_continual.json",
+      "preprocessor_sha256": "f7200d6aababede10ced7506bd734a850d9df2b45995e1b7839847334953695b",
+      "preprocessing_scope": "continual",
+      "class_names": [
+        "Benign",
+        "DDoS",
+        "DoS",
+        "Botnet",
+        "Bruteforce"
+      ],
+      "novelty_artifact": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/novelty.json",
+      "novelty_label": "Weak experimental max-confidence novelty baseline"
+    }
+  },
+  "replay_buffer": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/replay_buffer.npz",
+  "task2_results_zip": "data/task2/results.zip",
+  "task2_results_sha256": "0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e",
+  "quarantine_db": ".local/nids-demo/quarantine.sqlite3"
+}

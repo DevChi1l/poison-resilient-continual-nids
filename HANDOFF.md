@@ -1,7 +1,7 @@
 # Handoff
 
-> Latest continuation state: see the final dated section, “Full Task 1
-> reviewed; full Task 2 targeted comparison prepared.” Earlier sections are historical and do not
+> Latest continuation state: see the final dated section, “Task 2 reviewed;
+> local demonstration ready.” Earlier sections are historical and do not
 > override current unified ownership or implementation status.
 
 Date/time: 2026-10-02
@@ -948,3 +948,61 @@ version. Return executed notebook; root `protocol.json`, `environment.json`,
 confusion/class plots. Keep all `latest.pt`/`best.pt` and
 `attacked_replay_labels.npz` privately for audit/resume. Review actual
 results before any broader mitigation or attack changes.
+
+---
+
+## 2026-10-05: Task 2 reviewed; local demonstration ready
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Began from verified
+local/remote `d3dc566`; preserved all untracked `data/` content and
+`origin/docs/faculty-presentation` at `bc2dbbf`. No main merge, PPT/PDF edit,
+artifact mutation, or training run.
+
+Safely inspected `data/task2/results.zip` (SHA-256
+`0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e`).
+The archive has 194 integrity-valid members and no unsafe path/symlink. Only
+named JSON and numeric NPZ evidence was parsed; archived source/checkpoints
+were never executed or unpickled. Recorded exact Task 2 results in
+`docs/evidence/task2_targeted_summary.json`: clean/poisoned/filtered combined
+accuracy `0.6010047021`/`0.4491358660`/`0.6077218657`, macro-F1
+`0.5664584687`/`0.5379282267`/`0.5578505676`, Benign FPR
+`0.4989118012`/`0.6885997952`/`0.4666276412`. Gate: 80/80 poisoned and
+42/420 clean rejected; 378 retained. Every arm ran six epochs, selected epoch
+one, used 1,656 steps, and shared identical expanded initial weights. Filtering
+hurt DoS recall and increased old-attack-to-Benign errors; do not present one
+seed as broad robustness.
+
+Added `streamlit_app.py`, `src/demo/`, ignored-state rules, artifact config,
+demo dependencies, setup guide, teacher script, and tests. The views are:
+
+1. strict, 2,000-row-bounded CPU flow inference from real configured model/
+   preprocessing/class artifacts, with static model default and optional
+   labelled metrics;
+2. deterministic replay corruption plus existing Task 1 teacher gate, with a
+   persistent SQLite queue and audited reviewer reject/release only;
+3. clearly labelled saved Task 1/Task 2 playback with normalized confusion,
+   forgetting, per-class metrics, and gate trade-offs.
+
+Static and continual preprocessors stay separate. The weak Task 1 novelty
+cutoff is never applied to the eight-class model. Simulator truth is excluded
+from queue records. Release never calls training. Run:
+
+```bash
+.venv-demo/bin/streamlit run streamlit_app.py -- \
+  --config configs/demo_artifacts.example.json
+```
+
+Focused demo tests passed 10/10, including all Streamlit views and real ZIP
+values. The full `.venv` unittest suite ran 67 tests: 66 passed and only the
+opt-in real-data training smoke was skipped. `pytest -q` passed 70 tests plus
+65 subtests, with the same single opt-in skip; `pytest.ini` scopes collection
+to tracked tests rather than ignored repository snapshots. With PyTorch 2.11.0+cpu, the real
+static checkpoint produced a normalized `(1, 8)` forward pass on an actual
+Parquet row using static preprocessing; the Task 1 teacher produced normalized
+`(500, 5)` replay probabilities using continual preprocessing. The live gate
+matched the saved audit exactly: 80 poisoned and 42 clean rejected, 378
+retained. The teacher CLI stored 122 suspicious rows in a temporary SQLite
+queue. The app/CLI never called `fit`; existing tests used tiny synthetic CPU
+fits only, with no research-data training. The result ZIP, checkpoints, replay buffer, uploads,
+and durable SQLite queue remain private/ignored. Do not launch training from
+the demo or modify the immutable evidence archive.

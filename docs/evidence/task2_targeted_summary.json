@@ -1,0 +1,78 @@
+{
+  "schema_version": 1,
+  "evidence": {
+    "archive_path": "data/task2/results.zip",
+    "archive_sha256": "0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e",
+    "run_prefix": "full_task2_targeted_20261003T095508_992113Z/",
+    "primary_member": "full_task2_targeted_20261003T095508_992113Z/comparison.json",
+    "source_sha": "857dfbbcca2cfd6b33041ded51fbbae39b7a43f2",
+    "task1_source_sha": "e6ebfcf7a9beec4d2b8fd5245e7c62314b9fadf9",
+    "inspection": "Named JSON and numeric NPZ members were read without importing or executing the bundled repository snapshot."
+  },
+  "task1_before": {
+    "accuracy": 0.9925734439413022,
+    "macro_f1": 0.981162951652861,
+    "benign_fpr": 0.004171892742372403,
+    "old_attack_to_benign_count": 4361,
+    "old_attack_to_benign_support": 282191,
+    "old_attack_to_benign_rate": 0.015454071887480466
+  },
+  "shared_training_facts": {
+    "completed_epochs": 6,
+    "best_epoch": 1,
+    "optimizer_steps": 1656,
+    "draws_per_epoch": 70576,
+    "expanded_initial_sha256": "e53fb3c899176c99cb4914a8dd2f03f3addba355e4b3566a5dd17df23853640a"
+  },
+  "arms": {
+    "clean_replay": {
+      "combined_accuracy": 0.6010047020872148,
+      "combined_macro_f1": 0.5664584687018178,
+      "benign_fpr": 0.4989118011592611,
+      "dos_recall": 0.9715273233670576,
+      "old_attack_to_benign_count": 62,
+      "old_attack_to_benign_rate": 0.0002197093457977044,
+      "accuracy_forgetting": 0.3922693529022093,
+      "macro_f1_forgetting": 0.09486105611562545
+    },
+    "targeted20_unfiltered": {
+      "combined_accuracy": 0.44913586603196487,
+      "combined_macro_f1": 0.5379282266745713,
+      "benign_fpr": 0.6885997951625712,
+      "dos_recall": 0.9605879095988322,
+      "old_attack_to_benign_count": 3641,
+      "old_attack_to_benign_rate": 0.012902608516926478,
+      "accuracy_forgetting": 0.5473476953119543,
+      "macro_f1_forgetting": 0.13908659846849736
+    },
+    "targeted20_filtered": {
+      "combined_accuracy": 0.6077218656509111,
+      "combined_macro_f1": 0.5578505675817005,
+      "benign_fpr": 0.4666276411782605,
+      "dos_recall": 0.6072884683142901,
+      "old_attack_to_benign_count": 6856,
+      "old_attack_to_benign_rate": 0.02429560120627518,
+      "accuracy_forgetting": 0.38549126951391754,
+      "macro_f1_forgetting": 0.10405060552803447
+    }
+  },
+  "attack_and_gate": {
+    "seed": 42,
+    "mode": "targeted",
+    "target_class_id": 0,
+    "source_class_ids": [1, 2, 3, 4],
+    "eligible_rows": 400,
+    "poisoned_rows": 80,
+    "total_replay_rows": 500,
+    "gate_threshold": 0.006338521838188171,
+    "poison_rejected": 80,
+    "clean_rejected": 42,
+    "clean_candidates": 420,
+    "retained_rows": 378
+  },
+  "interpretation": [
+    "Filtering improved combined accuracy and Benign FPR relative to the poisoned unfiltered arm.",
+    "Filtering reduced DoS recall to 0.6072884683142901 and increased old-attack-to-Benign errors to 6856.",
+    "One fixed seed and one threat model do not establish broad poisoning robustness."
+  ]
+}

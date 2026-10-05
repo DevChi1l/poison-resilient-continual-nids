@@ -1,0 +1,7 @@
+-r requirements.txt
+
+# Local playback/review UI. Use Python 3.13 to match the recorded GPU runs.
+streamlit==1.65.0
+matplotlib==3.11.2
+
+# Install the matching CPU-only PyTorch wheel separately; see docs/LOCAL_DEMO.md.

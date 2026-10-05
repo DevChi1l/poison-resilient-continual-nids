@@ -1,10 +1,9 @@
 # Poison-Resilient, Novelty-Aware Continual NIDS
 
-> **Review-2 status:** data/preprocessing, a tabular Transformer, confidence
-> novelty, static label flips, and classification metrics are implemented.
-> Balanced-subset clean, static poisoning, and clean continual comparisons
-> ran on Kaggle. Replay-label poisoning and a simple consistency gate are
-> prepared but unexecuted. See
+> **Review-2 status:** the data/model/novelty/continual/poisoning pipeline and
+> full Task 1/Task 2 experiments have executed. A local artifact-backed
+> Streamlit demonstration now provides bounded real-checkpoint inference,
+> persistent quarantine review, and saved three-arm result playback. See
 > [PROJECT_STATUS.md](PROJECT_STATUS.md) for the live status.
 
 A final-year B.Tech CSE research prototype that investigates secure, continual learning for a Transformer-based Network Intrusion Detection System (NIDS).
@@ -49,10 +48,14 @@ Advanced replay defenses, backdoors, embedding-based novelty detection, secondar
 | Continual Task 1/Task 2 pipeline | Clean sequential/replay comparison observed; severe Benign forgetting remains | Unified A+B+C team |
 | Novelty baseline | NumPy confidence threshold and synthetic tests implemented | Unified A+B+C team |
 | Label-flip poisoning and evaluation | Random/targeted static flips and known-class metrics implemented; Kaggle comparison observed | Unified A+B+C team |
-| Replay-label poisoning and mitigation | Six-condition notebook and frozen-teacher consistency gate prepared; Kaggle run pending | Unified A+B+C team |
-| One-command integration | Not started | Unified A+B+C team |
+| Replay-label poisoning and mitigation | Full three-arm clean/targeted/filtered Task 2 run observed; gate rejected 80/80 poisoned and 42/420 clean replay rows | Unified A+B+C team |
+| Local demonstration | Three-view artifact-backed Streamlit UI implemented; CPU checkpoint inference requires local PyTorch | Unified A+B+C team |
 
-Observed balanced-subset clean, static poisoning, and clean continual results are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md). Replay-label poisoning and held-out novelty have no observed result. Every run must record its configuration, seed, split, and Git commit.
+Observed full static, Task 1, weak held-out novelty, and three-arm Task 2
+results are recorded in [PROJECT_STATUS.md](PROJECT_STATUS.md). The filtered
+arm improved overall accuracy over poisoning but harmed DoS recall and
+increased old-attack-to-Benign errors; this single seed is not broad robustness.
+Every run must record its configuration, seed, split, and Git commit.
 
 ## Team ownership and branches
 
@@ -100,8 +103,9 @@ still be changed only when the active task requires it.
 - A local, ignored combined flow-level Parquet collection is available at `data/cic-collection.parquet`. It has 9,167,581 rows, 57 numeric flow features, 33 detailed labels, and 8 broad labels. Its per-row source-dataset provenance is unavailable; do not call it CIC-IDS2017 or CIC-IDS2018 without external evidence. See `data/metadata/combined_flow_collection_audit.md`.
 - Review 2 will use a manageable, documented, reproducible subset of this collection.
 - Never commit raw datasets, processed data, checkpoints, secrets, or bulk generated outputs.
-- The observed environment is Python 3.14.6 with `numpy` and `pandas`; `torch` and `scikit-learn` are not installed or pinned yet.
-- The unified team will coordinate compatible dependencies before integration.
+- Core and demo dependencies are declared separately in `requirements.txt`
+  and `requirements-demo.txt`. Python 3.13 is recommended for the local demo
+  to match the recorded Kaggle/PyTorch environment.
 
 Synthetic data is allowed for a smoke test only; it is not valid NIDS evidence.
 
@@ -115,15 +119,24 @@ Synthetic data is allowed for a smoke test only; it is not valid NIDS evidence.
 6. Open a focused pull request; do not merge directly to `main`.
 7. Update the component's README section, [PROJECT_STATUS.md](PROJECT_STATUS.md), and [HANDOFF.md](HANDOFF.md) through the integration process.
 
-## Running the project
+## Running the local demonstration
 
-There is **no runnable pipeline yet**. The intended Review-2 command, once the unified team integrates the implemented components, is:
+The local UI plays back saved evidence and can perform bounded CPU inference
+with private checkpoints. It never performs full training:
 
 ```bash
-python run_pipeline.py --config configs/review2_smoke.yaml
+python3.13 -m venv .venv-demo
+source .venv-demo/bin/activate
+python -m pip install -r requirements-demo.txt
+python -m pip install 'torch==2.11.0+cpu' \
+  --index-url https://download.pytorch.org/whl/cpu
+.venv-demo/bin/streamlit run streamlit_app.py -- \
+  --config configs/demo_artifacts.example.json
 ```
 
-This command must not be documented as available until `run_pipeline.py`, the configuration file, dependencies, dataset instructions, and a successful observed smoke run are committed.
+See [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md) for artifact paths, the exact
+54-feature upload contract, queue behavior, and the teacher-only command. A
+separate one-command training pipeline is still not claimed.
 
 The [Kaggle GPU smoke notebook](notebooks/kaggle_review2_smoke.ipynb) completed
 a one-epoch functional run on a 64-per-class sample. The next step is the

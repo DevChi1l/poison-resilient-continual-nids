@@ -11,6 +11,12 @@ venv/
 .ipynb_checkpoints/
 
 # Data and generated artifacts
+# Keep every local dataset/run attachment private; only the documented data
+# card and data README are versioned.
+data/**
+!data/README.md
+!data/metadata/
+!data/metadata/**
 data/*.parquet
 data/*.zip
 data/**/*.zip
@@ -24,8 +30,17 @@ data/**/*.parquet
 results/**
 !results/README.md
 checkpoints/
+*.pt
+*.pth
 mlruns/
 wandb/
+
+# Local demonstration state and user-supplied flow uploads
+.local/
+uploads/
+*.sqlite3
+*.sqlite3-shm
+*.sqlite3-wal
 
 # Environment and secrets
 .env

@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-03 (full Task 1 reviewed; full Task 2 comparison prepared)
+Last updated: 2026-10-05 (full Task 2 reviewed; local artifact demo completed)
 
 ## Current state
 
@@ -19,15 +19,16 @@ The one-epoch Kaggle T4 smoke, balanced-subset clean baseline, clean continual,
 replay-label mitigation, balanced replay-exposure, and held-out novelty
 comparisons have executed. Full-row preparation, throughput benchmarking,
 and a full-partition clean static baseline also completed. The static result
-is not deployment performance. Full-data five-class Task 1 completed; the
-full-data Task 2 comparison has not run.
+is not deployment performance. Full-data five-class Task 1 and the three-arm
+full-data Task 2 comparison completed.
 
 The static label-flip comparison has also executed on Kaggle. Reusable
 task/replay, forgetting, frozen-teacher replay-label gate, optional balanced
 training sampler, and novelty-evaluation APIs are implemented. New disk-backed
 full-row preparation, durable training, and bounded static test evaluation
-were exercised on Kaggle. The fresh five-class full Task 1 run completed;
-a three-condition full Task 2 replay-label comparison is prepared.
+were exercised on Kaggle. The fresh five-class full Task 1 and three-condition
+full Task 2 replay-label runs completed. A three-view local Streamlit demo now
+provides real-artifact inference, persistent review, and saved-result playback.
 
 ## What is confirmed
 
@@ -77,20 +78,20 @@ a three-condition full Task 2 replay-label comparison is prepared.
 
 ## Known blockers and limitations
 
-- Confidence thresholding remains a simple baseline. The held-out Task 2
-  evaluation ran and achieved low unknown recall (170/900); one class split
+- Confidence thresholding remains a simple baseline. The full Task 1 held-out
+  Task 2 evaluation achieved low unknown recall (691/15,015); one class split
   and seed do not establish general novelty performance.
-- PyTorch is unavailable in the local system environment; current sampler
-  fit tests are skipped locally and included as Kaggle notebook checks.
-  Earlier Kaggle T4 training and reload checks succeeded. The opt-in
-  real-data local test remains skipped.
+- CPU PyTorch 2.11.0 was installed only in the ignored local `.venv` for demo
+  verification. Both real checkpoints loaded on CPU and produced normalized
+  probabilities; no local GPU or training was used. The opt-in full Parquet
+  fit test remains skipped because this session performed inference only.
 - Per-row dataset provenance is absent; source mixing cannot be evaluated from
   the Parquet file alone.
 - Clean task/replay and six replay-label/gate conditions have run, but Benign
   results remain weak and filtering did not consistently improve accuracy.
-  Balanced exposure and held-out novelty evaluation ran on a bounded subset;
-  full-data Task 2 training is pending and one-command
-  integration remains incomplete.
+  Balanced exposure and held-out novelty evaluation ran on a bounded subset.
+  The full Task 2 three-arm run is single-seed evidence and does not establish
+  broad robustness. A one-command training pipeline remains incomplete.
 
 ## Kaggle notebook preparation verification on 2026-10-02
 
@@ -146,10 +147,10 @@ artifacts remain local and uncommitted.
 
 ## Immediate next action
 
-Run `notebooks/kaggle_review2_full_task2_targeted_mitigation.ipynb` on
-Kaggle T4 with the existing prepared folder and entire completed Task 1
-output folder. Review all three conditions before extending the threat
-model; do not tune from the previously observed test metrics.
+Use the local artifact demonstration for Review 2 and independently review its
+saved evidence. Do not launch more training from the UI. Any follow-up research
+must predeclare additional seeds/threat models and preserve the current Task 2
+archive as immutable evidence.
 
 ## Observed results
 
@@ -157,7 +158,7 @@ Small smoke, clean balanced-subset, static poisoning, clean continual,
 replay-label mitigation, balanced replay exposure, and held-out confidence
 novelty results were observed on bounded data. Full-row preparation and
 full clean static model training and five-class Task 1 completed. The
-three-condition full-data Task 2 experiment has not executed.
+three-condition full-data Task 2 experiment has executed and is recorded below.
 
 ## Observed Kaggle clean baseline reviewed on 2026-10-03
 
@@ -583,3 +584,68 @@ Focused synthetic tests: Task 2 replay 2 passed, continual count metrics
 syntax/15-cell Markdown/empty-output/source-pin checks, and
 `git diff --check` passed. Local PyTorch/GPU and full prepared arrays are
 absent, so GPU/data execution is not claimed.
+
+## 2026-10-05: full Task 2 evidence reviewed and local demo completed
+
+Fetched origin and verified `feature/unified-novelty` local/remote initially
+matched `d3dc566`. The separate `origin/docs/faculty-presentation` branch
+remained at `bc2dbbf`; no main merge or PPT/PDF edit occurred. Existing
+untracked data/application artifacts were preserved. No training was launched.
+
+Inspected `data/task2/results.zip` as data only. SHA-256 is
+`0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e`.
+ZIP integrity passed across 194 members; no absolute/traversal member,
+symlink, or encrypted member was found. Named JSON evidence and numeric NPZ
+metadata were read without importing or executing the bundled repository
+snapshot or unpickling checkpoint files. The original ZIP was not modified.
+
+The saved Task 1-before values are accuracy `0.9925734439413022`, macro-F1
+`0.981162951652861`, and Benign FPR `0.004171892742372403`. Combined Task 2
+accuracy for clean/poisoned/filtered was
+`0.6010047020872148`/`0.44913586603196487`/`0.6077218656509111`; macro-F1
+was `0.5664584687018178`/`0.5379282266745713`/`0.5578505675817005`; Benign
+FPR was `0.4989118011592611`/`0.6885997951625712`/`0.4666276411782605`.
+The gate rejected 80/80 poisoned and 42/420 clean candidates, retaining 378.
+All arms completed six epochs, selected epoch one, took 1,656 optimizer
+steps, and shared expanded-initial SHA-256
+`e53fb3c899176c99cb4914a8dd2f03f3addba355e4b3566a5dd17df23853640a`.
+Filtering improved aggregate accuracy and Benign FPR over poisoning but cut
+DoS recall from `0.9605879095988322` to `0.6072884683142901` and increased
+old-attack-to-Benign errors from 3,641 to 6,856. This single-seed evidence
+does not establish broad poisoning resilience.
+
+Implemented the local, three-view `streamlit_app.py` and `src/demo/` adapter
+layer. Flow prediction enforces configured checkpoint/preprocessor hashes,
+scope and exact feature order, defaults to the eight-class clean static model,
+caps CSV/Parquet inference at 2,000 rows, uses CPU, and optionally reports
+labelled metrics. Static and continual fit states cannot be interchanged; the
+weak Task 1 max-confidence novelty baseline is restricted to the five-class
+teacher. The quarantine view reproduces deterministic targeted corruption and
+the existing teacher gate, stores only operational fields in an ignored SQLite
+review queue, and records audited reject/release transitions without training.
+Ground-truth attack masks appear only in an experiment-audit panel. The
+continual view reads saved evidence only and displays Task 1-before, three-arm
+metrics, forgetting, per-class values, normalized confusion matrices, and gate
+trade-offs.
+
+Configuration/setup is documented in `docs/LOCAL_DEMO.md`; the example is
+`configs/demo_artifacts.example.json`; the short non-UI teacher command is
+`scripts/demo_teacher_quarantine.py`. The evidence-linked compact record is
+`docs/evidence/task2_targeted_summary.json`. Checkpoints, replay/results ZIP,
+uploaded flows, and `.local/` SQLite state remain ignored and outside Git.
+
+Focused demo tests passed 10/10 in the ignored local `.venv`, including all
+three Streamlit views and the real archive regression. The complete unittest
+suite ran 67 tests: 66 passed and the explicitly opt-in real-data *training*
+smoke was skipped. Scoped `pytest -q` ran 70 tests: 70 passed, one opt-in test
+skipped, with 65 subtests passed; `pytest.ini` prevents collection from private
+archived repository snapshots under ignored `data/`. PyTorch 2.11.0+cpu loaded the real eight-class static
+checkpoint and performed a normalized `(1, 8)` forward pass on one actual
+bounded Parquet row with its static preprocessor. The real five-class Task 1
+teacher performed a normalized `(500, 5)` forward pass over the supplied
+replay buffer with its continual state; the live gate exactly reproduced 80
+poison rejects, 42 clean rejects and 378 retained. The CLI demonstration
+persisted 122 suspicious rows to a temporary SQLite database and printed its
+separate experiment audit. The application and CLI never called `fit`; the
+test suites exercised only existing tiny synthetic CPU fit tests. No research-
+dataset training or new experiment ran.
