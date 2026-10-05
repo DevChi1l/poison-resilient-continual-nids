@@ -95,3 +95,35 @@ python scripts/run_task2_clean_retention.py \
 Use `--resume-run-dir` with an entire prior output folder to continue from
 durable epoch boundaries. The runner requires CUDA and deliberately refuses
 non-Kaggle input/output paths.
+
+## Kaggle frozen-B replay poisoning study
+
+`run_task2_b_poisoning.py` compares clean, targeted-poisoned, and
+targeted-poisoned-plus-filtered replay without changing the selected clean
+configuration-B protocol. It hash-verifies the prepared data, Task 1
+checkpoint, clean-retention evidence ZIP, and prior clean-validation gate
+calibration. It reconstructs the saved 25,000-row training-only replay,
+checks its exact row IDs and array hashes, then saves a private numeric NPZ
+under the ignored Kaggle output folder.
+
+Every arm begins with a fresh seeded expansion of the same Task 1 checkpoint.
+The learning rate, architecture, preprocessing, seed, batch size, fixed class
+quotas, 70,576 draws per epoch, eight-epoch cap, patience three, and
+validation-macro-F1 checkpoint rule are frozen. The attack changes exactly
+4,000 of 20,000 eligible original attack labels (IDs 1–4) to Benign. The gate
+sees only frozen features, supplied labels, teacher probabilities, and the
+previously calibrated threshold; simulator truth is used only afterward for
+audit metrics. The runner fails before training if filtering empties any old
+supplied-label bucket.
+
+```bash
+python scripts/run_task2_b_poisoning.py \
+  --prepared-dir /kaggle/input/<prepared>/review2_large_prepare_<id> \
+  --task1-run-dir /kaggle/input/<task1>/full_task1_<id> \
+  --retention-results-zip /kaggle/input/<retention-evidence>/results.zip \
+  --prior-task2-results-zip /kaggle/input/<prior-task2-evidence>/results.zip
+```
+
+Use `--resume-run-dir` with a complete prior output folder to resume only from
+durable epoch boundaries. The private replay NPZ, checkpoints, audit arrays,
+and generated result images remain outside Git.

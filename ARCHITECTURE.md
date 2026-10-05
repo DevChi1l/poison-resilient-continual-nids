@@ -291,6 +291,18 @@ rejection, clean false rejection, retained poison fraction, and retained
 counts per supplied class. Undefined poison rates in clean conditions are
 `None`, not fabricated zeros.
 
+The frozen configuration-B poisoning follow-up is orchestrated by
+`scripts/run_task2_b_poisoning.py`. Its replay source is the exact 25,000-row
+training-only manifest selected by the clean retention study. All three arms
+use supplied-label class buckets and identical configuration-B draw quotas;
+the filtered arm must retain at least one row in every old supplied-label
+bucket or the run stops before training. Each arm loads the Task 1 best
+checkpoint independently, expands it with seed 42, and verifies the expanded
+initial state hash before training. The already-trained B checkpoint is
+evidence only and is never an initialization source. Validation macro-F1
+selects each arm checkpoint; fixed test rows are opened once per arm only
+after a durable test-open lock records all selected checkpoint hashes.
+
 ## Integration contract
 
 `run_pipeline.py` (owned by the unified team) will accept one config, invoke components in order, print only observed values, and save a timestamped JSON result manifest under `results/`. It must support a small CPU smoke configuration before a larger dataset run.
