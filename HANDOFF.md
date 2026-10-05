@@ -1148,3 +1148,84 @@ epoch) the 16-epoch cap is ~5.7 GPU minutes, plus ~18.4 seconds selected test
 inference; allow 8–12 minutes total for hashes, replay creation, plots and
 Kaggle overhead. Do not promise 85% accuracy; report the boolean target result
 and every saved minority-class metric.
+
+---
+
+## 2026-10-05: frozen configuration-B poisoning comparison ready for Kaggle
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Began from verified
+local/remote `99391300fa960e51e7bc9e021e4881e99b917af3`. The demo, original
+archives, untracked `codexmem.tx`, and faculty branch at `bc2dbbf` were
+preserved. No local research training, main merge, app change, or PPT/PDF edit
+was made.
+
+The returned retention ZIP is private at `data/task2_clean_ret/results.zip`
+and hash-pinned by
+`1efb433f2f77501a290600a67a7f4e0b1f760b0f5b42b983db49ed1ffd2cacf0`.
+Its 212 members passed ZIP integrity/path/symlink/encryption checks. Read only
+named JSON; do not execute its repository snapshot or unpickle checkpoints.
+The attached notebook is byte-identical to the tracked clean-retention
+launcher but is unexecuted, so use the ZIP JSON as execution evidence.
+
+Selected B evidence is recorded in
+`docs/evidence/task2_clean_retention_summary.json`: combined accuracy
+`0.9769527915097729`, macro-F1 `0.670591558187877`, Benign FPR
+`0.010824470651101`, old accuracy `0.9874783015309689`, new accuracy
+`0.02350982350982351`, and zero Infiltration recall. Both clean-retention arms
+ran four epochs and selected epoch one. Say **improved retention with weak
+acquisition**, not successful eight-class continual learning.
+
+Source is published through
+`489c27f85460b193a8ac8b9aa25d9e706f004b97`. The unexecuted notebook is
+`notebooks/kaggle_review2_task2_b_poisoning.ipynb` and pins that exact source.
+Kaggle settings: Internet on; GPU accelerator (T4 x2 as in the evidence, though
+one T4 is sufficient); attach four private inputs:
+
+1. complete `review2_large_prepare_<id>` folder;
+2. complete `full_task1_20261003T074354_763068Z` folder;
+3. clean-retention `results.zip` with SHA-256 `1efb433f...2cacf0`;
+4. prior full-Task2 `results.zip` with SHA-256 `0c73a44c...d832e`.
+
+The prior ZIP supplies only the hash-verified clean-validation gate calibration
+record. The clean-retention ZIP supplies the saved 25,000 replay manifest and
+B reference metrics. The runner rebuilds the replay from fixed training rows,
+checks all 25,000 original IDs and array hashes, applies the frozen preprocessor
+exactly once, and saves `verified_large_replay_private.npz` under the private
+output. It never initializes from the trained B checkpoint.
+
+The three arms are `clean_B`, `targeted20_B`, and
+`targeted20_filtered_B`. Targeting is seed-42 label corruption from original
+IDs 1–4 to Benign: exactly 4,000/20,000 eligible and 4,000/25,000 total. The
+teacher gate uses only features, supplied labels, teacher probabilities and
+threshold `0.006338521838188171`; simulator truth enters only `gate_audit`.
+Every arm uses supplied-label buckets, the original B quotas, a fresh identical
+seeded Task1 expansion, LR 0.0001, batch 256, 70,576 draws/epoch, max eight,
+patience three and validation-macro-F1 selection. Empty filtered old-class
+buckets are a hard pre-training error. Report each arm's actual epochs/steps.
+
+Default output is `/kaggle/working/task2_b_poisoning_study`. Preserve the
+whole folder privately. Required root evidence: `protocol.json`,
+`environment.json`, `replay_verification.json`, private replay NPZ,
+`attack_audit.json` plus private NPZ, `gate_audit.json` plus private NPZ,
+`test_open_lock.json`, `clean_reproducibility.json`, `comparison.json`, and
+`study_manifest.json`. Every arm must retain `arm_config.json`, `latest.pt`,
+`best.pt`, `history.json`, `training_manifest.json`, `reload_verification.json`,
+`validation_metrics.json`, `arm_summary.json`, old/new/combined test JSON,
+`test_summary.json`, training curves, normalized confusion and per-class plots.
+
+The clean arm explicitly compares itself with uploaded B; report any delta
+without test-guided rerunning. Read aggregate accuracy alongside old/new
+metrics, forgetting, Benign FPR, old-attack-to-Benign errors, per-class
+recall/F1 and gate poison/clean rejections. One seed cannot establish broad
+robustness.
+
+Local validation: full `pytest` passed 77 tests plus 65 subtests with one
+explicitly opt-in real-data training smoke skipped. The 23 focused tests plus
+30 subtests and standalone 3/3 `unittest` protocol suite covered the new
+invariants. Evidence hashes/JSON, compileall, runner help, the 10-cell/4-code-
+cell notebook syntax/empty outputs/source pin, remote pin and
+`git diff --check` passed. No GPU training was attempted. Historical B timing
+is 23.238 seconds per train-plus-validation epoch, giving 9.30 minutes at the
+three-arm 24-epoch cap; three old+new test passes add about 0.95 measured
+minutes. Allow 13–18 minutes total for hashing, replay/gate preparation, plots
+and overhead.

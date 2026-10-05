@@ -1,0 +1,80 @@
+{
+  "evidence_scope": "Uploaded clean Task 2 retention follow-up; compact evidence-linked summary",
+  "retention_results_zip": {
+    "local_path_not_tracked": "data/task2_clean_ret/results.zip",
+    "sha256": "1efb433f2f77501a290600a67a7f4e0b1f760b0f5b42b983db49ed1ffd2cacf0",
+    "archive_test": "passed",
+    "unsafe_absolute_or_parent_paths": 0,
+    "symlinks": 0,
+    "encrypted_members": 0,
+    "execution_evidence_root": "task2_clean_retention_study/"
+  },
+  "attached_notebook": {
+    "local_path_not_tracked": "data/task2_clean_ret/kaggle_review2_task2_clean_retention.ipynb",
+    "sha256": "daed240ae5420b66a5aa8fcb22b927694cdb25e46df084f3264654d1cad7f6a1",
+    "byte_identical_to_tracked_launcher": true,
+    "code_cells": 4,
+    "executed_code_cells": 0,
+    "saved_outputs": 0,
+    "evidence_role": "protocol/launcher evidence only; ZIP JSON artifacts are the execution evidence"
+  },
+  "provenance": {
+    "study_source_sha": "57009efe09f48ee742576bcc5d089a71c30b4f0e",
+    "prepared_input_sha256": "666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba",
+    "task1_best_sha256": "aed830e152d61525c641a95ac8eded661caa8c318d9aed910abb954782454de6",
+    "continual_preprocessing_sha256": "f7200d6aababede10ced7506bd734a850d9df2b45995e1b7839847334953695b",
+    "selected_checkpoint_sha256": "212c6e9ca4635ab340268cce6a61624a125781b20b011e5ff45e836211dc4fe1",
+    "environment": {
+      "python": "3.13.15",
+      "numpy": "2.1.3",
+      "torch": "2.11.0+cu128",
+      "cuda": "12.8",
+      "gpu": "Tesla T4",
+      "visible_gpu_count": 2
+    }
+  },
+  "selected_configuration": "B_large_proportional_lr1e4",
+  "selected_B_fixed_test": {
+    "combined_accuracy": 0.9769527915097729,
+    "combined_macro_f1": 0.670591558187877,
+    "benign_fpr": 0.010824470651101,
+    "old_accuracy": 0.9874783015309689,
+    "new_accuracy": 0.02350982350982351,
+    "old_focused_macro_f1": 0.9738561461265298,
+    "new_focused_macro_f1": 0.3748229963183234,
+    "infiltration_recall": 0.0,
+    "old_attack_to_benign": {
+      "count": 3848,
+      "support": 282191,
+      "rate": 0.01363615423596075
+    },
+    "forgetting": {
+      "accuracy": 0.005095142410333264,
+      "macro_f1": 0.007306805526331228
+    }
+  },
+  "arm_execution": {
+    "A_small_uniform_lr1e4": {
+      "completed_epochs": 4,
+      "selected_epoch": 1,
+      "optimizer_steps": 1104,
+      "training_draws": 282304,
+      "train_plus_validation_seconds": 91.98855166700008
+    },
+    "B_large_proportional_lr1e4": {
+      "completed_epochs": 4,
+      "selected_epoch": 1,
+      "optimizer_steps": 1104,
+      "training_draws": 282304,
+      "train_plus_validation_seconds": 92.95101322
+    },
+    "identical_expanded_initial_sha256": "e53fb3c899176c99cb4914a8dd2f03f3addba355e4b3566a5dd17df23853640a"
+  },
+  "interpretation": "Configuration B improved old-class retention and aggregate accuracy but acquired the new classes weakly. Infiltration recall remained zero and new-class accuracy was about 2.35%, so this is not successful eight-class continual learning.",
+  "limitations": [
+    "Historical Task 2 test results had already been inspected, so this was an exploratory follow-up.",
+    "Configuration B combines replay-size and sampling changes and does not isolate either effect.",
+    "One fixed seed cannot establish broad continual-learning or robustness performance.",
+    "High combined accuracy is dominated by the old-class population and must not hide minority/new-class failures."
+  ]
+}

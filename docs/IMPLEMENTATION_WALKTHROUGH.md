@@ -2159,3 +2159,75 @@ epoch; therefore the two-arm eight-epoch cap is about 5.7 measured GPU minutes,
 with prior selected-partition test inference about 18.4 seconds. Allow roughly
 8–12 minutes total for hashing, replay preparation, validation selection,
 plots, and Kaggle overhead. This estimate is not a promised runtime or result.
+
+---
+
+## Frozen-B targeted replay poisoning follow-up (2026-10-05)
+
+### Step 1: record what the clean retention result actually established
+
+The hash-verified retention ZIP selected configuration B with combined
+accuracy `0.9769527915097729`, macro-F1 `0.670591558187877`, Benign FPR
+`0.010824470651101`, old accuracy `0.9874783015309689`, new accuracy
+`0.02350982350982351`, and zero Infiltration recall. Both compared arms
+completed four epochs and chose epoch one. This is strong old-class retention
+but weak new-class acquisition, not a successful eight-class learner. The
+compact evidence and archive/notebook roles are recorded in
+`docs/evidence/task2_clean_retention_summary.json`.
+
+### Step 2: make replay identity and attack accounting fail-closed
+
+`scripts/run_task2_b_poisoning.py` consumes the original retention evidence
+ZIP, prior Task2 calibration ZIP, fixed prepared arrays and Task1 foundation.
+It validates archive paths and hashes, then deterministically selects 5,000
+training-only examples per old class. All 25,000 original IDs and numeric
+feature/label/ID hashes must equal the saved B manifest. The transformed replay
+is verified against one direct frozen-preprocessor pass and saved privately as
+an object-free NPZ; it is never preprocessed again.
+
+The targeted simulator uses original clean labels only to define its audit
+budget. With seed 42, source IDs 1–4 and Benign target 0, it changes exactly
+4,000 of 20,000 eligible rows. The gate itself cannot receive those original
+labels or the changed mask: it receives replay features, attacked supplied
+labels, probabilities from the frozen Task1 checkpoint, and the previously
+verified threshold. Truth is passed only afterward to the separate gate audit.
+The filtered replay must still contain all five old supplied-label classes.
+
+### Step 3: hold the configuration-B learner constant across all arms
+
+Clean, poisoned, and poisoned-plus-filtered arms each reload Task1 best and
+expand from the same seed. The initial network hash must match both other arms
+and the historical B hash. No trained B checkpoint is loaded. All arms use
+the same architecture, frozen preprocessing, AdamW learning rate 0.0001,
+batch 256, seed 42, 70,576 draws per epoch and historical B quotas: 44,110 old
+draws in original training proportions and 8,822 for each new class. Sampling
+buckets always follow each arm's supplied labels. The cap is eight epochs,
+patience three, and clean-validation macro-F1 selects best checkpoints.
+
+Durable `latest.pt` holds model/optimizer/scaler/RNG/history state at every
+completed epoch and repairs `best.pt` on resume. The output reports actual,
+not presumed, epochs, optimizer steps, per-class draws and unique-row exposure.
+All three checkpoint and validation hashes are written to `test_open_lock.json`
+before test views are created.
+
+### Step 4: evaluate once and keep aggregate claims constrained
+
+Each selected arm checkpoint receives one bounded pass over old fixed-test rows
+and one over new fixed-test rows. Confusion counts generate old/new/combined
+metrics, forgetting, Benign FPR, old-attack-to-Benign errors, per-class
+recall/F1 and normalized plots without a third inference pass. The clean arm
+is compared numerically with uploaded B as a reproducibility control. Any
+discrepancy is reported with environment and identity checks; it does not
+trigger test-guided tuning.
+
+`notebooks/kaggle_review2_task2_b_poisoning.ipynb` pins published source
+`489c27f85460b193a8ac8b9aa25d9e706f004b97`, validates focused tests, locates
+the two evidence ZIPs by exact hash, and invokes the runner. Generated replay,
+audit arrays, checkpoints and bulk results remain private under
+`/kaggle/working`. The notebook has no stored execution outputs because this
+task prepared, but did not run, the research study locally.
+
+Local validation passed 77 tests plus 65 subtests with only the opt-in real-
+data training smoke skipped. Focused replay/attack/gate/sampler/checkpoint
+checks, dependency-light notebook checks, compileall, notebook/evidence JSON
+validation, exact source-pin verification and `git diff --check` also passed.

@@ -749,3 +749,67 @@ unexecuted. Earlier Tesla T4 timings imply at most about 5.7 minutes for 16
 train-plus-validation epochs and about 18.4 seconds for selected test
 inference; budget 8–12 minutes overall for input hashing/preparation/plots and
 runtime overhead.
+
+## 2026-10-05: clean-retention evidence recorded; frozen-B poisoning notebook ready
+
+Started from the user-verified unified commit
+`99391300fa960e51e7bc9e021e4881e99b917af3`; local and remote matched after
+fetch. Preserved the working demo, all original/private results, untracked
+`codexmem.tx`, and `origin/docs/faculty-presentation` at `bc2dbbf`. No local
+research training, app/PPT/PDF change, main merge, or artifact mutation
+occurred.
+
+Inspected `data/task2_clean_ret/results.zip` as evidence only. Its SHA-256 is
+`1efb433f2f77501a290600a67a7f4e0b1f760b0f5b42b983db49ed1ffd2cacf0`;
+ZIP integrity passed for 212 members with no unsafe path, symlink, encryption,
+or extraction. Named JSON was read without executing archived source or
+unpickling checkpoints. The attached notebook SHA-256 is
+`daed240ae5420b66a5aa8fcb22b927694cdb25e46df084f3264654d1cad7f6a1`
+and is byte-identical to the tracked launcher, but has zero executed code
+cells and zero saved outputs; it is protocol evidence, while the ZIP JSON is
+execution evidence.
+
+Configuration B was selected. Fixed-test combined accuracy is
+`0.9769527915097729`, macro-F1 `0.670591558187877`, Benign FPR
+`0.010824470651101`, old accuracy `0.9874783015309689`, and new accuracy
+`0.02350982350982351`; Infiltration recall is zero. Both A and B completed
+four epochs, selected epoch one, and used 1,104 optimizer steps. This is
+improved retention with weak acquisition, not successful eight-class
+continual learning. The evidence-linked record is
+`docs/evidence/task2_clean_retention_summary.json`.
+
+Published the frozen three-arm source runner in `e543dfe` and its dependency-
+light Kaggle checks in `489c27f85460b193a8ac8b9aa25d9e706f004b97`.
+`scripts/run_task2_b_poisoning.py` reconstructs and hash-verifies the exact
+25,000-row training-only replay, writes a private numeric NPZ, targets exactly
+4,000/20,000 eligible attack rows to Benign, reuses the verified Task1 clean-
+validation gate calibration, and stops if filtering empties an old supplied-
+label bucket. Clean, poisoned, and filtered arms share fresh Task1 expansion,
+configuration-B quotas, learning rate 0.0001, seed 42, batch 256, 70,576
+draws/epoch, max eight epochs, patience three, and validation-macro-F1
+selection. Actual epoch/step/exposure counts are saved. Test views open only
+after all validation-selected checkpoint hashes are locked.
+
+Added `notebooks/kaggle_review2_task2_b_poisoning.ipynb`, pinned to full source
+SHA `489c27f85460b193a8ac8b9aa25d9e706f004b97`. It requires the complete
+prepared folder, complete Task1 folder, clean-retention ZIP, and prior Task2
+ZIP as private Kaggle inputs. No already-trained B checkpoint initializes an
+arm. It preserves all earlier studies separately and writes checkpoints,
+private replay/audit NPZs, metrics, normalized confusion/per-class plots,
+training curves, provenance, clean-control reproducibility, and gate tradeoffs
+under `/kaggle/working/task2_b_poisoning_study`.
+
+Full local `pytest` passed 77 tests plus 65 subtests, with one explicitly
+opt-in real-data training smoke skipped. The 23-test focused selection plus 30
+subtests covered archive safety, exact attack budget, replay isolation, fixed
+quotas, filtering failure, streaming metrics and durable checkpoint/resume;
+the new dependency-light protocol suite also passed 3/3 under `unittest`.
+Both evidence bundles passed hash/JSON checks. The notebook parses as 10
+cells/4 syntactically valid code cells with empty outputs and the exact source
+pin; compileall, runner help, remote pin and `git diff --check` passed.
+GPU/data research training remains intentionally unexecuted.
+The historical B run measured 92.951 seconds for four train-plus-validation
+epochs (23.238 seconds/epoch); the three-arm 24-epoch cap is therefore about
+9.30 GPU minutes. Historical fixed old+new test inference was 19.067 seconds
+per arm, or about 0.95 minutes for three. Budget 13–18 minutes overall for
+hashing, replay/gate preparation, plots and Kaggle overhead.
