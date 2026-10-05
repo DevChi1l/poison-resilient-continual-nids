@@ -106,6 +106,10 @@ def train_full_disk_backed(
     progress_every_batches: int = 1000,
     report: Callable[[str], None] = print,
     checkpoint_selection: str = "validation_loss",
+    distillation_teacher: Any | None = None,
+    distillation_old_class_ids: tuple[int, ...] = tuple(range(5)),
+    distillation_weight: float = 0.0,
+    distillation_temperature: float = 2.0,
 ) -> dict:
     """Train full partitions with atomic latest/best checkpoints each epoch.
 
@@ -130,6 +134,13 @@ def train_full_disk_backed(
         raise ValueError("Progress interval and optional epoch limit must be positive")
     if checkpoint_selection not in ("validation_loss", "validation_macro_f1"):
         raise ValueError("checkpoint_selection must be validation_loss or validation_macro_f1")
+    if distillation_weight < 0 or not np.isfinite(distillation_weight):
+        raise ValueError("distillation_weight must be nonnegative and finite")
+    if distillation_weight > 0:
+        if distillation_teacher is None:
+            raise ValueError("A frozen Task 1 teacher is required for distillation")
+        from .old_replay_distillation import freeze_old_teacher
+        freeze_old_teacher(distillation_teacher, model, distillation_old_class_ids)
 
     folder = Path(output_dir)
     folder.mkdir(parents=True, exist_ok=True)
@@ -141,6 +152,12 @@ def train_full_disk_backed(
     runtime = _runtime_signature(torch, model)
     header = _resume_header(config, model.class_ids, data_identity, runtime,
                             checkpoint_selection)
+    if distillation_weight > 0:
+        header["distillation"] = {
+            "old_class_ids": list(distillation_old_class_ids),
+            "weight": distillation_weight,
+            "temperature": distillation_temperature,
+        }
     optimizer = torch.optim.AdamW(model.network.parameters(), lr=model.config.learning_rate,
                                   weight_decay=model.config.weight_decay)
     criterion = torch.nn.CrossEntropyLoss()
@@ -201,6 +218,8 @@ def train_full_disk_backed(
         loss_sum = 0.0
         actual_rows = 0
         steps = 0
+        kd_loss_sum = 0.0
+        kd_old_rows = 0
         for x, labels, _ in train.iter_epoch(batch_size=model.config.batch_size,
                                              seed=seed, epoch=epoch,
                                              mode=model.config.training_sampler):
@@ -210,7 +229,20 @@ def train_full_disk_backed(
             targets = torch.as_tensor(encoded, dtype=torch.long, device=model.device)
             optimizer.zero_grad(set_to_none=True)
             with torch.autocast(device_type=model.device.type, enabled=use_amp):
-                loss = criterion(model.network(inputs), targets)
+                logits = model.network(inputs)
+                ce_loss = criterion(logits, targets)
+                loss = ce_loss
+                if distillation_weight > 0:
+                    from .old_replay_distillation import old_replay_kl
+                    external_labels = torch.as_tensor(labels, dtype=torch.long,
+                                                      device=model.device)
+                    kd_loss, old_count = old_replay_kl(
+                        logits, inputs, external_labels, distillation_teacher,
+                        distillation_old_class_ids, distillation_temperature,
+                    )
+                    loss = ce_loss + distillation_weight * kd_loss
+                    kd_loss_sum += float(kd_loss.detach().item()) * len(labels)
+                    kd_old_rows += old_count
             if not torch.isfinite(loss):
                 raise FloatingPointError("Non-finite training loss; no epoch checkpoint written")
             scaler.scale(loss).backward()
@@ -287,6 +319,9 @@ def train_full_disk_backed(
             "train_seconds": train_seconds, "validation_seconds": validation_seconds,
             "best_epoch_so_far": best_epoch, "stale_epochs": stale,
         }
+        if distillation_weight > 0:
+            epoch_record["distillation_kl_batch_normalized"] = kd_loss_sum / actual_rows
+            epoch_record["distillation_old_rows"] = kd_old_rows
         exposure = getattr(train, "last_epoch_exposure", None)
         if exposure is not None:
             if exposure.get("draws") != actual_rows or exposure.get("epoch") != epoch + 1:
