@@ -89,6 +89,7 @@ class DemoArtifactTests(unittest.TestCase):
                     "task1_teacher": "teacher",
                     "models": models,
                     "replay_buffer": replay.name,
+                    "replay_buffer_sha256": _sha(replay),
                     "task2_results_zip": archive.name,
                     "task2_results_sha256": _sha(archive),
                     "quarantine_db": "queue/review.sqlite3",

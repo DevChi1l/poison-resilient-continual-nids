@@ -39,11 +39,23 @@
         "Bruteforce"
       ],
       "novelty_artifact": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/novelty.json",
+      "novelty_sha256": "49a8a31bc9140dd9b0a99faad5b5d5f546af3b581e3a72b19bccf1ed73a079b8",
       "novelty_label": "Weak experimental max-confidence novelty baseline"
     }
   },
   "replay_buffer": "data/full-run-task_01/results/full_task1_20261003T074354_763068Z/replay_buffer.npz",
+  "replay_buffer_sha256": "0540c2f8f4dab04429759bfe99d1eed174a40a366687a2fe38846d734e8520f0",
   "task2_results_zip": "data/task2/results.zip",
   "task2_results_sha256": "0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e",
-  "quarantine_db": ".local/nids-demo/quarantine.sqlite3"
+  "quarantine_db": ".local/nids-demo/quarantine.sqlite3",
+  "dataset": {
+    "source_parquet": "data/cic-collection.parquet",
+    "source_sha256": "666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba",
+    "split_manifest": "data/preparation/split_manifest.json",
+    "split_manifest_sha256": "1f6ce4c1cb61d3b1ba77ff763439f690a040fc838118dc9ab7a74543348e208b",
+    "split_codes": ".local/nids-demo/split/splits.npy",
+    "split_codes_sha256": "445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3",
+    "test_indices": ".local/nids-demo/split/test_indices.npy",
+    "test_indices_sha256": "89f240936b161aec69f8ece5cf84d851647c953f68feb2d6a8daeae219e5d9a8"
+  }
 }

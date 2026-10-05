@@ -60,3 +60,22 @@ archives would produce this layout:
 Important: these names identify the currently available local archives as
 **CSE-CIC-IDS2018-style** artifacts. Do not label them CIC-IDS2021 in an
 experiment report until the team verifies their provenance and schema.
+
+## Local demo preparation
+
+The artifact-backed Streamlit demonstration has two no-training helpers:
+
+```bash
+python scripts/demo_preflight.py \
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
+
+python scripts/export_demo_sample.py \
+  --config configs/demo_artifacts.example.json \
+  --output-dir uploads/rehearsal --rows-per-class 5 --seed 42
+```
+
+Preflight checks configured hashes and contracts without changing artifacts or
+creating the queue. Export reads only the original Parquet and saved held-out
+row indices, never predictions. Generated flow/provenance files stay under the
+ignored `uploads/` tree; split arrays and SQLite queues stay under `.local/`.

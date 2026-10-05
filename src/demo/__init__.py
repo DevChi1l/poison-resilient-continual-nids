@@ -6,6 +6,7 @@ schema checks, and quarantine review remain usable without PyTorch installed.
 
 from .artifacts import (
     ArtifactConfigurationError,
+    DatasetArtifact,
     DemoArtifactConfig,
     ModelArtifact,
     load_demo_config,
@@ -14,6 +15,7 @@ from .artifacts import (
 
 __all__ = [
     "ArtifactConfigurationError",
+    "DatasetArtifact",
     "DemoArtifactConfig",
     "ModelArtifact",
     "load_demo_config",

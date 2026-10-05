@@ -1,12 +1,14 @@
 """Artifact-backed local Review-2 demonstration.
 
 Launch from the repository root with:
-    streamlit run streamlit_app.py -- --config configs/demo_artifacts.example.json
+    streamlit run streamlit_app.py -- --config configs/demo_artifacts.example.json \
+        --database .local/nids-demo-rehearsal/quarantine.sqlite3
 """
 
 from __future__ import annotations
 
 import argparse
+from dataclasses import replace
 import os
 from pathlib import Path
 import sqlite3
@@ -58,13 +60,24 @@ CLASS_NAMES = (
 )
 
 
-def _config_argument() -> str:
+def _runtime_arguments() -> tuple[str, str | None]:
     parser = argparse.ArgumentParser(add_help=False)
     parser.add_argument("--config")
+    parser.add_argument("--database")
     arguments, _ = parser.parse_known_args()
-    return arguments.config or os.environ.get(
-        "NIDS_DEMO_CONFIG", "configs/demo_artifacts.example.json"
+    return (
+        arguments.config
+        or os.environ.get("NIDS_DEMO_CONFIG", "configs/demo_artifacts.example.json"),
+        arguments.database or os.environ.get("NIDS_DEMO_DATABASE"),
     )
+
+
+def _runtime_config() -> DemoArtifactConfig:
+    config_path, database = _runtime_arguments()
+    config = load_demo_config(config_path)
+    if database:
+        config = replace(config, quarantine_db=Path(database).expanduser().resolve())
+    return config
 
 
 @st.cache_resource(show_spinner=False)
@@ -418,7 +431,7 @@ def main() -> None:
     st.title("Poison-Resilient / Novelty-Aware Continual NIDS")
     st.caption("Local Review-2 artifact demonstration — research prototype, not a production IDS")
     try:
-        config = load_demo_config(_config_argument())
+        config = _runtime_config()
     except ArtifactConfigurationError as error:
         st.error(str(error))
         st.stop()

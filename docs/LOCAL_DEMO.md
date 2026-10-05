@@ -23,11 +23,55 @@ artifact locations differ. Paths are relative to its `base_dir`; absolute
 paths are also accepted. Keep correct SHA-256 values so a mismatched
 checkpoint, preprocessor, or result ZIP fails closed.
 
+The sample exporter also requires the original Parquet and persisted full-test
+row indices declared in the `dataset` configuration section. The returned
+artifact bundle did not include the split arrays. On this machine they were
+re-created outside Git with the original seed-42 split generator; the resulting
+`splits.npy` SHA-256 exactly matched the run's recorded
+`445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3`.
+If the arrays are absent elsewhere, reproduce and verify them without training:
+
+```bash
+.venv-demo/bin/python -c "from src.data.large_data import prepare_full_partitions; prepare_full_partitions('data/cic-collection.parquet', '.local/nids-demo/split', seed=42, progress=print)"
+sha256sum .local/nids-demo/split/splits.npy \
+  .local/nids-demo/split/test_indices.npy
+```
+
+Expected hashes are `445182b0...2ca3` and `89f24093...9a8`. Run the
+read-only preflight before opening the app:
+
+```bash
+.venv-demo/bin/python scripts/demo_preflight.py \
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
+```
+
+It checks configured hashes, both checkpoint/preprocessor contracts, replay
+dimensions, named Task 2 evidence, held-out data provenance, and the SQLite
+destination. A failure includes a concrete `Fix:` line.
+
+Export a deterministic five-per-class held-out sample. This scans labels and
+materializes only 40 selected rows; it never runs the model or selects rows by
+prediction correctness:
+
+```bash
+.venv-demo/bin/python scripts/export_demo_sample.py \
+  --config configs/demo_artifacts.example.json \
+  --output-dir uploads/rehearsal \
+  --rows-per-class 5 --seed 42
+```
+
+The upload is `uploads/rehearsal/heldout_flows.csv`: the static preprocessor's
+54 raw features in exact order plus `ClassLabel`. Original Parquet row IDs are
+separate in `uploads/rehearsal/heldout_flow_provenance.csv`. Both and their
+manifest are ignored by Git.
+
 Launch from the repository root:
 
 ```bash
 .venv-demo/bin/streamlit run streamlit_app.py -- \
-  --config configs/demo_artifacts.example.json
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
 ```
 
 ## Required private artifacts
@@ -46,6 +90,8 @@ The example configuration expects:
 The checkpoint, replay buffer, uploaded flow file, result ZIP, and generated
 SQLite queue remain outside Git. The default queue is
 `.local/nids-demo/quarantine.sqlite3`, an ignored path.
+Use `--database` for a faculty run so rehearsal and earlier review decisions
+are not mixed or overwritten.
 
 ## Flow input contract
 
@@ -85,3 +131,8 @@ oversized JSON. Bundled source and checkpoints are not imported or executed.
 The compact evidence index is
 `docs/evidence/task2_targeted_summary.json`; the original ZIP remains the
 authoritative artifact and is not modified.
+
+The exact timed narration and click sequence is in
+`docs/FIVE_MINUTE_DEMO.md`. The completed local rehearsal is summarized in
+`docs/evidence/demo_rehearsal_20261005.json`. Its 40-row metrics are bounded
+sample behavior, not full-test performance.

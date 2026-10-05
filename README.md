@@ -131,12 +131,15 @@ python -m pip install -r requirements-demo.txt
 python -m pip install 'torch==2.11.0+cpu' \
   --index-url https://download.pytorch.org/whl/cpu
 .venv-demo/bin/streamlit run streamlit_app.py -- \
-  --config configs/demo_artifacts.example.json
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
 ```
 
 See [docs/LOCAL_DEMO.md](docs/LOCAL_DEMO.md) for artifact paths, the exact
-54-feature upload contract, queue behavior, and the teacher-only command. A
-separate one-command training pipeline is still not claimed.
+54-feature upload contract, held-out sample export, preflight command, queue
+behavior, and the teacher-only command. The timed faculty walkthrough is
+[docs/FIVE_MINUTE_DEMO.md](docs/FIVE_MINUTE_DEMO.md). A separate one-command
+training pipeline is still not claimed.
 
 The [Kaggle GPU smoke notebook](notebooks/kaggle_review2_smoke.ipynb) completed
 a one-epoch functional run on a 64-per-class sample. The next step is the

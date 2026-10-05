@@ -2019,3 +2019,63 @@ real-data training smoke was skipped. Scoped `pytest -q` also passed 70 tests
 and 65 subtests with that one skip. The app and CLI never call `fit`; only the
 repository's existing tiny synthetic CPU fit tests ran. No research-data
 training or new experiment started.
+
+---
+
+## Final local rehearsal and provenance-safe sample (2026-10-05)
+
+### Step 1: recover the recorded test partition without choosing new rows
+
+The private return contained the original 9,167,581-row Parquet and split
+manifest but no `.npy` split arrays. We re-ran the existing labels-only,
+seed-42 full partition generator into ignored `.local/` storage. Every class
+count matched the saved manifest, and the regenerated `splits.npy` SHA-256 was
+`445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3`,
+identical to the recorded clean-model run. This verifies the same deterministic
+row assignment rather than defining a new test set.
+
+### Step 2: export a bounded, prediction-independent UI sample
+
+`src/demo/sample_export.py` streams only `ClassLabel` while intersecting the
+strictly increasing saved test row IDs. Independent seeded reservoirs select a
+fixed limit per broad class; no checkpoint, probability or correctness is
+consulted. It then materializes only those selected raw rows. The flow CSV has
+the static fit state's exact 54-feature order followed by `ClassLabel`.
+`source_row_id` is excluded from the upload and stored in a separate provenance
+CSV. Output hashes, feature order, selection seed and the warning that sample
+metrics are not full-test estimates are written to a separate ignored manifest.
+
+The real rehearsal export contains 40 rows, five from each of the eight broad
+classes. The clean static checkpoint predicted them on CPU in the Flow view.
+Accuracy `0.725`, macro-F1 `0.7139496468443838` and Benign FPR `0.0` describe
+only this bounded, class-balanced rehearsal sample.
+
+### Step 3: fail early with one preflight command
+
+`src/demo/preflight.py` and `scripts/demo_preflight.py` provide a read-only
+check before the faculty demonstration. They verify configured hashes; load
+both checkpoint/preprocessor pairs and compare feature width, scope and head;
+validate the five-class novelty artifact and 500x54 replay; safely read all
+named Task 2 arm evidence; verify Parquet schema, saved split hashes and test-
+index membership; and check an existing SQLite queue or writable parent. Every
+failure carries a specific fix. The real preflight passed all checks.
+
+### Step 4: rehearse browser behavior and restart persistence
+
+Streamlit now accepts a `--database` override, keeping the final rehearsal at
+`.local/nids-demo-rehearsal-20261005/quarantine.sqlite3` separate from the
+default queue. The real browser rehearsal uploaded the exported CSV, selected
+`ClassLabel`, and produced 40 real predictions with optional metrics. The
+teacher/gate view then inserted exactly 122 suspicious rows and exposed the
+separate audit of 80/80 poison and 42/420 clean rejections, 378 retained.
+
+The reviewer rejected one item and released a second with required reviewer/
+reason history. Release changed SQLite only. After a complete Streamlit stop
+and restart, the UI showed 120 pending, one rejected and one released row and
+both histories. The continual view loaded the hash-verified ZIP, displayed the
+three exact arms, and retained the warning about DoS recall, old-attack-to-
+Benign errors and single-seed scope. No training API was called.
+
+Commands, artifacts and the timed teaching narration are in
+`docs/LOCAL_DEMO.md`, `docs/FIVE_MINUTE_DEMO.md`, and
+`docs/evidence/demo_rehearsal_20261005.json`.

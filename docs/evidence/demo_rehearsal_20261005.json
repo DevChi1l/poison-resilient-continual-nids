@@ -1,0 +1,84 @@
+{
+  "schema_version": 1,
+  "source_head_before_work": "309708251a6a0c24ac04646dea0eabc057cd81ee",
+  "mode": "local artifact-backed UI rehearsal; no training",
+  "artifact_config": "configs/demo_artifacts.example.json",
+  "preflight": {
+    "result": "pass",
+    "checks": [
+      "configured file hashes",
+      "checkpoint/preprocessor width, scope, and class IDs",
+      "Task 1 novelty artifact identity",
+      "500x54 replay dimensions",
+      "readable named Task 2 evidence",
+      "original Parquet and held-out split provenance",
+      "writable separate SQLite location"
+    ]
+  },
+  "test_split_provenance": {
+    "original_parquet_sha256": "666af53c788c79312b421c607289cb555c2335ae51ba39b2700a357595fa8dba",
+    "preexisting_split_arrays_in_returned_bundle": false,
+    "reconstruction": "repository prepare_full_partitions, seed 42, labels-only scan; no model predictions",
+    "split_codes_sha256": "445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3",
+    "recorded_run_split_codes_sha256": "445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3",
+    "test_indices_sha256": "89f240936b161aec69f8ece5cf84d851647c953f68feb2d6a8daeae219e5d9a8",
+    "test_rows": 1375134
+  },
+  "flow_prediction": {
+    "generated_flow_path_ignored": "uploads/rehearsal/heldout_flows.csv",
+    "generated_provenance_path_ignored": "uploads/rehearsal/heldout_flow_provenance.csv",
+    "flow_sha256": "db091d0491d5f9dfa5f6103c946448e0850e4d5e23b81a51b533a0e939cfe78f",
+    "provenance_sha256": "a15be954500c1590811f610e7aaa80a1096f7f8870eff0ef44e4599921c3c975",
+    "selection": "seeded class reservoirs over saved full-test row indices; prediction-independent",
+    "rows": 40,
+    "features": 54,
+    "class_counts": {
+      "Benign": 5,
+      "DDoS": 5,
+      "DoS": 5,
+      "Botnet": 5,
+      "Bruteforce": 5,
+      "Infiltration": 5,
+      "Webattack": 5,
+      "Portscan": 5
+    },
+    "observed_bounded_sample_only": {
+      "accuracy": 0.725,
+      "macro_f1": 0.7139496468443838,
+      "benign_fpr": 0.0
+    },
+    "limitation": "These 40-row values are UI-rehearsal sample behavior, not full-test performance."
+  },
+  "quarantine": {
+    "database_path_ignored": ".local/nids-demo-rehearsal-20261005/quarantine.sqlite3",
+    "new_suspicious_rows": 122,
+    "gate_audit": {
+      "poison_rejected": 80,
+      "poisoned_candidates": 80,
+      "clean_rejected": 42,
+      "clean_candidates": 420,
+      "retained": 378
+    },
+    "audited_decisions": {
+      "pending": 120,
+      "rejected": 1,
+      "released": 1
+    },
+    "restart_persistence_verified": true,
+    "default_queue_rows_after_rehearsal": 0,
+    "release_triggered_training": false
+  },
+  "continual_playback": {
+    "archive_sha256": "0c73a44cca06cb92f7c21c98652808f739df67236d58d790f5cf4b93027d832e",
+    "three_arm_values_verified_in_ui": true,
+    "saved_playback_only": true,
+    "training_launched_by_rehearsal": false
+  },
+  "preservation": {
+    "original_result_artifacts_modified": false,
+    "generated_flow_files_tracked": false,
+    "sqlite_tracked": false,
+    "faculty_presentation_branch_modified": false,
+    "ppt_or_pdf_modified": false
+  }
+}

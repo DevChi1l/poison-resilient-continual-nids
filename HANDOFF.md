@@ -1006,3 +1006,79 @@ queue. The app/CLI never called `fit`; existing tests used tiny synthetic CPU
 fits only, with no research-data training. The result ZIP, checkpoints, replay buffer, uploads,
 and durable SQLite queue remain private/ignored. Do not launch training from
 the demo or modify the immutable evidence archive.
+
+---
+
+## 2026-10-05: final local demo rehearsal prepared
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Began from verified
+local/remote `309708251a6a0c24ac04646dea0eabc057cd81ee`; preserved
+`origin/docs/faculty-presentation` at `bc2dbbf`, existing private artifacts,
+and untracked `codexmem.tx`. No main merge, training, or PPT/PDF change.
+
+New public commands:
+
+```bash
+.venv/bin/python scripts/demo_preflight.py \
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
+
+.venv/bin/python scripts/export_demo_sample.py \
+  --config configs/demo_artifacts.example.json \
+  --output-dir uploads/rehearsal --rows-per-class 5 --seed 42
+
+.venv/bin/streamlit run streamlit_app.py -- \
+  --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
+```
+
+The original artifact bundle did not retain `test_indices.npy`. It was
+re-created in `.local/nids-demo/split/` by the unchanged deterministic full-
+partition generator using seed 42. The reconstructed `splits.npy` hash equals
+the recorded run hash exactly (`445182...2ca3`), and all 9,167,581 class/split
+counts match the saved manifest. `test_indices.npy` has 1,375,134 original row
+IDs and hash `89f240...e9a8`; the example config now pins both hashes. Keep these
+generated arrays outside Git.
+
+The sample exporter selects without predictions, writes exactly 54 ordered raw
+features plus `ClassLabel`, and keeps source IDs only in a separate provenance
+file. Current ignored output is `uploads/rehearsal/heldout_flows.csv`: 40 rows,
+five per class. The static model's observed sample-only metrics are 0.725
+accuracy, 0.7139496468 macro-F1 and 0.0 Benign FPR. Never call these full-test
+metrics or present the sample as a model-selected showcase.
+
+The preflight loads both real checkpoints on CPU and checks every configured
+hash/pairing, replay dimensions, named Task 2 JSON, data/split alignment and
+the queue location. The real run ended `PREFLIGHT PASS`. The final browser
+rehearsal verified all views and exact three-arm playback. In the isolated
+rehearsal queue the live gate inserted 122 rows; audited decisions leave 120
+pending, one rejected and one released. A full Streamlit process restart kept
+those counts and reasons. The default `.local/nids-demo/quarantine.sqlite3`
+still contains zero review/history rows.
+
+Use `docs/FIVE_MINUTE_DEMO.md` for the exact commands, clicks and honest
+narration. Evidence is `docs/evidence/demo_rehearsal_20261005.json`. The flow
+CSV, source-ID CSV, split arrays and both queues are ignored. A future faculty
+run should choose a new ignored DB path rather than delete rehearsal history.
+Required interpretation remains: 42 clean gate rejections are false alarms,
+Task 1 confidence novelty is weak, forgetting is large, filtering harms DoS
+recall and increases old-attack-to-Benign errors, and one seed does not prove
+broad resilience.
+
+Verification to repeat after any demo change:
+
+```bash
+.venv/bin/python scripts/demo_preflight.py --config configs/demo_artifacts.example.json \
+  --database .local/nids-demo-rehearsal/quarantine.sqlite3
+.venv/bin/python -m unittest discover -s tests -p 'test_*.py' -q
+.venv/bin/python -m compileall -q src scripts tests streamlit_app.py
+.venv/bin/python -m pytest -q
+git diff --check
+```
+
+Final observed verification: preflight passed all eight groups; unittest ran
+69 tests (68 passed, one opt-in real-data training skip); module-form pytest
+passed 72 tests plus 65 subtests (one skip); compileall, both changed JSON
+documents and `git diff --check` passed. On this machine invoke pytest as
+`.venv/bin/python -m pytest -q`; the direct `.venv/bin/pytest` entry point does
+not put the repository root on `sys.path` and fails collection before tests.

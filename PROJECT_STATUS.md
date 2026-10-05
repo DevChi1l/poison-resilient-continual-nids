@@ -649,3 +649,58 @@ persisted 122 suspicious rows to a temporary SQLite database and printed its
 separate experiment audit. The application and CLI never called `fit`; the
 test suites exercised only existing tiny synthetic CPU fit tests. No research-
 dataset training or new experiment ran.
+
+## 2026-10-05: final local demo rehearsal and held-out sample export
+
+Started from verified local/remote unified commit
+`309708251a6a0c24ac04646dea0eabc057cd81ee`. Preserved the existing app,
+all private artifacts, untracked `codexmem.tx`, and
+`origin/docs/faculty-presentation` at `bc2dbbf`. No training, main merge,
+PPT/PDF edit, checkpoint mutation, or result-archive mutation occurred.
+
+The returned artifact bundle lacked its generated full split arrays. Re-ran
+the repository's original labels-only `prepare_full_partitions` algorithm over
+the SHA-verified Parquet with seed 42 into ignored `.local/` storage. All class
+counts matched the saved manifest; reconstructed `splits.npy` SHA-256
+`445182b087636e68089a5efd5d9645a1cc41109940d17ee778b81c935f0d2ca3`
+exactly matched the training run record. The persisted held-out row-index hash
+is `89f240936b161aec69f8ece5cf84d851647c953f68feb2d6a8daeae219e5d9a8`.
+
+Added `scripts/export_demo_sample.py` and `src/demo/sample_export.py`. The
+exporter hash-checks the original Parquet/split artifacts, scans only saved
+test rows, uses seeded per-class reservoir selection without model predictions,
+and writes 54 raw static feature columns in exact order plus `ClassLabel`.
+Original row IDs are written to a separate provenance CSV. The real export at
+`uploads/rehearsal/heldout_flows.csv` contains five examples from each of all
+eight classes (40 rows); upload, provenance, manifest and split arrays remain
+ignored. Its real CPU UI metrics were accuracy `0.725`, macro-F1
+`0.7139496468443838`, and Benign FPR `0.0`; these are explicitly only bounded
+rehearsal-sample behavior, not full-test performance.
+
+Added a read-only `scripts/demo_preflight.py`/`src/demo/preflight.py`. It
+checks hashes, model/preprocessor scope-width-head compatibility, Task 1
+novelty identity, the 500x54 replay contract, safe readable Task 2 evidence,
+Parquet/test-split alignment, and the SQLite destination, with concrete fixes.
+All checks passed against the real artifacts. Added replay/novelty/dataset
+hashes to the example config and a Streamlit `--database` override so rehearsal
+uses an isolated queue.
+
+Rehearsed all three UI views in a real local browser. The clean static model
+predicted the 40 exported rows on CPU; the Task 1 teacher/gate added exactly
+122 suspicious rows (80/80 poisoned plus 42/420 clean rejected; 378 retained)
+to `.local/nids-demo-rehearsal-20261005/quarantine.sqlite3`. One reject and one
+release were recorded with audit histories. After stopping and restarting
+Streamlit, the UI still showed 120 pending, one rejected and one released row,
+including both reasons. The default queue remained at zero rows. Release did
+not trigger training. The saved continual view displayed all three exact arms,
+normalized confusion/per-class data and the mixed-mitigation warning.
+
+The compact record is `docs/evidence/demo_rehearsal_20261005.json`; exact setup
+and timed narration are in `docs/LOCAL_DEMO.md` and
+`docs/FIVE_MINUTE_DEMO.md`. Focused exporter tests passed 2/2 and existing demo
+artifact tests passed 4/4. Full unittest discovery ran 69 tests: 68 passed and
+the opt-in real-data training smoke was skipped. `.venv/bin/python -m pytest
+-q` passed 72 tests plus 65 subtests with the same one skip. Compileall, JSON
+parsing and `git diff --check` passed. The direct `.venv/bin/pytest` wrapper
+does not add the repository root to `sys.path` in this local environment, so
+use the verified module-form command above.

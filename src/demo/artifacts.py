@@ -31,11 +31,26 @@ class ModelArtifact:
     preprocessing_scope: str
     class_names: dict[int, str]
     novelty_artifact: Path | None = None
+    novelty_sha256: str | None = None
     novelty_label: str | None = None
 
     @property
     def class_ids(self) -> tuple[int, ...]:
         return tuple(self.class_names)
+
+
+@dataclass(frozen=True)
+class DatasetArtifact:
+    """Original flow table and recorded full-test partition provenance."""
+
+    source_parquet: Path
+    source_sha256: str
+    split_manifest: Path
+    split_manifest_sha256: str
+    split_codes: Path
+    split_codes_sha256: str
+    test_indices: Path
+    test_indices_sha256: str
 
 
 @dataclass(frozen=True)
@@ -48,9 +63,11 @@ class DemoArtifactConfig:
     models: dict[str, ModelArtifact]
     task1_teacher: str
     replay_buffer: Path
+    replay_buffer_sha256: str
     task2_results_zip: Path
     task2_results_sha256: str
     quarantine_db: Path
+    dataset: DatasetArtifact | None = None
 
 
 def file_sha256(path: str | Path) -> str:
@@ -141,6 +158,11 @@ def load_demo_config(path: str | Path) -> DemoArtifactConfig:
                 if isinstance(novelty_path, str) and novelty_path
                 else None
             ),
+            novelty_sha256=(
+                _required_text(raw, "novelty_sha256").lower()
+                if isinstance(novelty_path, str) and novelty_path
+                else None
+            ),
             novelty_label=(
                 str(raw["novelty_label"])
                 if raw.get("novelty_label") is not None
@@ -160,6 +182,34 @@ def load_demo_config(path: str | Path) -> DemoArtifactConfig:
     if len(models[teacher].class_names) != 5:
         raise ArtifactConfigurationError("task1_teacher must identify the five-class teacher")
 
+    raw_dataset = record.get("dataset")
+    dataset = None
+    if raw_dataset is not None:
+        if not isinstance(raw_dataset, dict):
+            raise ArtifactConfigurationError("dataset must be an object")
+        dataset = DatasetArtifact(
+            source_parquet=_resolve(
+                base_dir, _required_text(raw_dataset, "source_parquet")
+            ),
+            source_sha256=_required_text(raw_dataset, "source_sha256").lower(),
+            split_manifest=_resolve(
+                base_dir, _required_text(raw_dataset, "split_manifest")
+            ),
+            split_manifest_sha256=_required_text(
+                raw_dataset, "split_manifest_sha256"
+            ).lower(),
+            split_codes=_resolve(base_dir, _required_text(raw_dataset, "split_codes")),
+            split_codes_sha256=_required_text(
+                raw_dataset, "split_codes_sha256"
+            ).lower(),
+            test_indices=_resolve(
+                base_dir, _required_text(raw_dataset, "test_indices")
+            ),
+            test_indices_sha256=_required_text(
+                raw_dataset, "test_indices_sha256"
+            ).lower(),
+        )
+
     return DemoArtifactConfig(
         source_path=source,
         max_inference_rows=max_rows,
@@ -167,9 +217,11 @@ def load_demo_config(path: str | Path) -> DemoArtifactConfig:
         models=models,
         task1_teacher=teacher,
         replay_buffer=_resolve(base_dir, _required_text(record, "replay_buffer")),
+        replay_buffer_sha256=_required_text(record, "replay_buffer_sha256").lower(),
         task2_results_zip=_resolve(base_dir, _required_text(record, "task2_results_zip")),
         task2_results_sha256=_required_text(record, "task2_results_sha256").lower(),
         quarantine_db=_resolve(base_dir, _required_text(record, "quarantine_db")),
+        dataset=dataset,
     )
 
 
@@ -223,10 +275,19 @@ def load_fitted_preprocessor(model: ModelArtifact) -> FittedPreprocessor:
 def load_task1_novelty_threshold(model: ModelArtifact) -> float:
     """Load the weak max-confidence cutoff only for a five-class Task 1 model."""
 
-    if len(model.class_ids) != 5 or model.novelty_artifact is None:
+    if (
+        len(model.class_ids) != 5
+        or model.novelty_artifact is None
+        or model.novelty_sha256 is None
+    ):
         raise ArtifactConfigurationError(
             "A novelty cutoff is valid here only for the configured five-class Task 1 model"
         )
+    verify_file(
+        model.novelty_artifact,
+        model.novelty_sha256,
+        label=f"{model.display_name} novelty artifact",
+    )
     try:
         record = json.loads(model.novelty_artifact.read_text(encoding="utf-8"))
         threshold = float(record["calibration"]["threshold"])
