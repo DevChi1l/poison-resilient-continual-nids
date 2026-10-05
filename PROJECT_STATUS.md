@@ -813,3 +813,34 @@ epochs (23.238 seconds/epoch); the three-arm 24-epoch cap is therefore about
 9.30 GPU minutes. Historical fixed old+new test inference was 19.067 seconds
 per arm, or about 0.95 minutes for three. Budget 13–18 minutes overall for
 hashing, replay/gate preparation, plots and Kaggle overhead.
+
+## 2026-10-05: frozen-B Kaggle evidence folder compatibility
+
+Verified local and remote `feature/unified-novelty` at
+`7cc01bd8d3e0034cc9cb99911ccfe79165968179` before editing. Preserved the
+private archives, demo, faculty branch, and untracked `codexmem.tx`.
+
+Published runner and test changes first at
+`1c2b7ad76a4c7078e43ae867fa86136b997c6780`. The runner now accepts an
+original ZIP or an extracted study folder for each of the retention and prior
+Task2 inputs. ZIP inputs still require their original full SHA-256. Folder
+inputs verify the exact nine JSON files consumed: eight retention records and
+the prior calibration record. Their byte hashes were derived directly from
+the original locally verified ZIPs and are pinned in the runner. Semantic,
+checkpoint, replay, split, attack, and gate checks remain in place. No
+experiment setting changed.
+
+The Kaggle notebook now pins `1c2b7ad` and provides explicit folder selectors
+for the supplied `results_ret/task2_clean_retention_study` and
+`results/full_task2_targeted_20261003T095508_992113Z` paths. Automatic
+discovery accepts exactly one hash-valid ZIP or folder per study and gives an
+ambiguity/error message otherwise. The original ZIP option remains available.
+
+Verification: four focused protocol tests passed, including ZIP/folder
+equivalence and altered-file/symlink rejection. A separate read-only check
+reconstructed only the consumed JSON files in temporary folders from both
+original ZIPs; ZIP, folder, and mixed inputs yielded identical evidence and
+passed the existing semantic checks. Altering one extracted JSON file was
+rejected. The notebook selector accepted one valid folder, rejected an
+ambiguous ZIP+folder pair, and rejected altered evidence. Notebook JSON and
+four code-cell syntax checks passed. No training was launched.

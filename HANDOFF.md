@@ -1229,3 +1229,40 @@ is 23.238 seconds per train-plus-validation epoch, giving 9.30 minutes at the
 three-arm 24-epoch cap; three old+new test passes add about 0.95 measured
 minutes. Allow 13–18 minutes total for hashing, replay/gate preparation, plots
 and overhead.
+
+---
+
+## 2026-10-05: Kaggle extracted evidence support
+
+Owner: unified A+B+C, branch `feature/unified-novelty`. Started from
+local/remote `7cc01bd8d3e0034cc9cb99911ccfe79165968179`. Source was
+published first at `1c2b7ad76a4c7078e43ae867fa86136b997c6780`;
+`notebooks/kaggle_review2_task2_b_poisoning.ipynb` now pins that full SHA.
+
+Set these in the notebook's input-selection cell for the supplied Kaggle
+dataset layout:
+
+```python
+RETENTION_RESULTS_ZIP = None
+RETENTION_RESULTS_DIR = '/kaggle/input/datasets/dvdhere/results-task2/results_ret/task2_clean_retention_study'
+PRIOR_TASK2_RESULTS_ZIP = None
+PRIOR_TASK2_RESULTS_DIR = '/kaggle/input/datasets/dvdhere/results-task2/results/full_task2_targeted_20261003T095508_992113Z'
+```
+
+The runner accepts `--retention-results-dir` and
+`--prior-task2-results-dir` as alternatives to its existing ZIP flags.
+For ZIPs, full original archive hashes remain mandatory. For extracted
+folders, the eight retention JSON files and one prior calibration JSON file
+are verified against exact byte SHA-256 values derived from the original
+locally verified ZIPs. The existing semantic/provenance checks still run.
+Automatic notebook discovery also works when exactly one valid evidence
+source of each type is attached; if both ZIP and folder are present, use the
+explicit selectors above.
+
+Four focused tests passed. Original ZIP, extracted-folder and mixed-source
+evidence were equivalent in a temporary local check, and an altered JSON
+file was rejected. Notebook discovery tested unique, ambiguous and altered
+cases. Notebook JSON/code syntax passed. No research training, app/PPT/PDF
+work, archive mutation, or main merge occurred. The next action is to run the
+notebook on Kaggle with the prepared-data and Task1 inputs plus these two
+extracted folders, then preserve the complete private output for review.
