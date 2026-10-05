@@ -11,7 +11,22 @@ import numpy as np
 
 from scripts.run_task2_acquisition import DRAWS, class_probabilities
 from src.training.task2_replay import Task2ReplayView
-from tests.test_task2_replay import FakeTask2
+
+
+class FakeTask2:
+    """Minimal local fixture; do not depend on import resolution of `tests`."""
+
+    partition = "train"
+    class_ids = (5, 6, 7)
+
+    def __init__(self):
+        self.features = np.arange(24, dtype=np.float32).reshape(12, 2)
+        self.labels = np.array([0, 1, 2, 3, 4, 5, 5, 6, 6, 7, 7, 0])
+        self.splits = np.array([0] * 11 + [2])
+        self.indices = np.arange(5, 11, dtype=np.int64)
+
+    def batch(self, rows):
+        return self.features[rows] + 100, self.labels[rows].copy(), rows.copy()
 
 
 class AcquisitionProtocolTests(unittest.TestCase):
