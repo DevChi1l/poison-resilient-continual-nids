@@ -1082,3 +1082,69 @@ passed 72 tests plus 65 subtests (one skip); compileall, both changed JSON
 documents and `git diff --check` passed. On this machine invoke pytest as
 `.venv/bin/python -m pytest -q`; the direct `.venv/bin/pytest` entry point does
 not put the repository root on `sys.path` and fails collection before tests.
+
+---
+
+## 2026-10-05: Kaggle clean Task 2 retention follow-up ready
+
+Owner: unified A+B+C; branch `feature/unified-novelty`. Began from verified
+local/remote `9da2f2818b772d49f5fb44c4b205d4bff88df4ea`. Preserved the
+working demo/private evidence, untracked `codexmem.tx`, and
+`origin/docs/faculty-presentation` at `bc2dbbf`. No Task 1/Task 2 training,
+test inference, app work, main merge, or PPT/PDF edit occurred locally.
+
+Published source commits:
+
+- `e3494d0`: optional deterministic class-probability quotas in
+  `Task2ReplayView`, per-class unique exposure, and optional clean-validation
+  macro-F1 checkpoint/patience selection in the durable trainer;
+- `24fd77f` plus fix `57009ef`: the CUDA/Kaggle runner
+  `scripts/run_task2_clean_retention.py`, with fixed input/checkpoint hashes,
+  training-only replay checks, two-arm execution, validation lock, selected-
+  only test evaluation, plots, provenance, and resumable best/latest state.
+
+The unexecuted notebook is
+`notebooks/kaggle_review2_task2_clean_retention.ipynb` and pins full source SHA
+`57009efe09f48ee742576bcc5d089a71c30b4f0e`. Kaggle settings: Internet on;
+GPU accelerator (the earlier measured environment was Tesla T4); attach the
+complete prepared folder and complete verified Task 1 run as private inputs.
+Set `PREPARED_DIR` and `TASK1_RUN_DIR` only if auto-discovery is ambiguous.
+Default output is `/kaggle/working/task2_clean_retention_study`; use
+`RESUME_RUN_DIR` with the whole prior folder after an epoch-boundary pause.
+
+The notebook compares exactly:
+
+- A: verified 500-row replay (100 distinct per old class), existing uniform
+  eight-class sampler, learning rate 0.0001;
+- B: 5,000 distinct training-only replay rows per old class, learning rate
+  0.0001, 44,110 old draws allocated by original old training proportions and
+  8,822 draws for each new class per epoch.
+
+B combines replay size and sampling and must not be described as isolating
+either. Both arms use identical expanded initial weights, seed 42, batch 256,
+70,576 draws/276 steps per epoch, max eight epochs and patience three. The
+predeclared selection rule is clean-validation macro-F1 first, with exact ties
+resolved by lower validation Benign FPR, higher old focused macro-F1, then
+stable name. Historical tests were already inspected, so call this exploratory.
+Only the locked selected checkpoint receives fixed-test inference.
+
+Expected root outputs: `protocol.json`, `environment.json`,
+`large_replay_manifest.json`, `selection_lock.json`,
+`selected_old_test_metrics.json`, `selected_new_test_metrics.json`,
+`selected_combined_test_metrics.json`, `selected_test_summary.json`,
+`study_manifest.json`, and old/new/combined confusion/per-class PNGs. Each arm
+contains `arm_config.json`, `latest.pt`, `best.pt`, `history.json`,
+`training_manifest.json`, `reload_verification.json`, `arm_summary.json`,
+`validation_metrics.json`, and `training_curves.png`. Preserve the entire
+folder privately; do not add it, checkpoints, or prepared arrays to Git.
+
+Verification completed locally: full unittest discovery 71 passed with one
+explicitly opt-in real-data smoke skipped; runner compile/help and helper smoke
+passed; notebook parsed as 10 cells/4 syntactically valid empty-output code
+cells with the exact published source pin; remote branch advertised that pin;
+`git diff --check` passed. The actual Kaggle GPU/data run is the remaining
+blocker. Based on prior Task 2 T4 history (~21.35 seconds per train+validation
+epoch) the 16-epoch cap is ~5.7 GPU minutes, plus ~18.4 seconds selected test
+inference; allow 8–12 minutes total for hashes, replay creation, plots and
+Kaggle overhead. Do not promise 85% accuracy; report the boolean target result
+and every saved minority-class metric.

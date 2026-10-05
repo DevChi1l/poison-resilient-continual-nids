@@ -2079,3 +2079,83 @@ Benign errors and single-seed scope. No training API was called.
 Commands, artifacts and the timed teaching narration are in
 `docs/LOCAL_DEMO.md`, `docs/FIVE_MINUTE_DEMO.md`, and
 `docs/evidence/demo_rehearsal_20261005.json`.
+
+---
+
+## Exploratory clean Task 2 retention notebook (2026-10-05)
+
+### Step 1: freeze the question before opening new test results
+
+The historical three-arm Task 2 test evidence had already been inspected, so
+this is labelled an exploratory follow-up. Three observations motivate it but
+are recorded only as hypotheses, not causes: uniform sampling over eight
+classes gives Benign 12.5% expected exposure, the existing 500-row replay has
+only 100 distinct rows per old class, and the earlier Task 2 run inherited
+learning rate 0.001. The study does not retrain the 65.5-minute Task 1
+foundation and does not alter its fixed splits or continual preprocessor.
+
+Only two clean configurations are allowed. A keeps the existing 500-row replay
+and uniform sampler at learning rate 0.0001. B uses that learning rate plus
+5,000 distinct training-only replay rows per old class and fixed class quotas:
+62.5% of 70,576 draws go to old classes in original Task 1 training
+proportions, while 37.5% is uniform over new classes. B deliberately combines
+replay-size and sampling changes, so it cannot identify which change caused an
+outcome.
+
+### Step 2: add deterministic exposure and macro-F1 selection support
+
+`Task2ReplayView` retains its existing stochastic uniform default. An optional
+probability map now uses stable largest-remainder allocation, seeded shuffling,
+and within-class replacement. For B this yields exactly 44,110 old draws and
+8,822 draws for each new class per epoch. History records planned and actual
+class counts plus actual unique rows drawn per class; frozen replay features
+still bypass preprocessing.
+
+`train_full_disk_backed` retains validation loss as its default. The optional
+`checkpoint_selection='validation_macro_f1'` records full clean-validation
+macro-F1/balanced accuracy and applies both best-checkpoint selection and
+patience to macro-F1. Its strict resume header includes the non-default rule,
+and best/latest checkpoints record the selection value. Existing loss-selected
+runs remain compatible. These source changes and the GPU runner were published
+before notebook creation; the final runner source is commit
+`57009efe09f48ee742576bcc5d089a71c30b4f0e`.
+
+### Step 3: make selection auditable and test use one-shot
+
+`scripts/run_task2_clean_retention.py` hash-checks the complete prepared-data
+and Task 1 inputs, reconstructs B's 25,000-row replay only from the fixed
+training partition, verifies distinct IDs and exactly one frozen preprocessing
+pass, and confirms both expanded models share an initial state hash. Both use
+seed 42, batch 256, 70,576 draws (276 steps) per epoch, at most eight epochs,
+patience three, the original architecture, and fresh AdamW at 0.0001. Separate
+latest/best checkpoints and histories support exact epoch-boundary resume.
+
+The rule is persisted before training: maximize combined eight-class clean-
+validation macro-F1; exact ties use lower validation Benign FPR, higher old-
+class focused macro-F1, then stable name. Both configurations save validation
+Benign FPR and old/new focused metrics. `selection_lock.json` is durable before
+the Task 1-before test record or fixed Task 2 test views are opened. Only the
+selected checkpoint is evaluated, once per disjoint old/new test partition;
+the confusion counts are then combined without a third inference pass. Saved
+outputs include old/new/combined metrics, per-class recall/F1, forgetting,
+row-normalized confusion plots, training curves, sampler exposure, hashes and
+the explicit 85%-accuracy target result. Minority failures remain visible.
+
+### Step 4: pin one Kaggle notebook and state what is unverified
+
+`notebooks/kaggle_review2_task2_clean_retention.ipynb` pins source
+`57009efe09f48ee742576bcc5d089a71c30b4f0e`. It requires Kaggle Internet, a
+GPU, the complete `review2_large_prepare_<id>` folder, and the complete
+`full_task1_20261003T074354_763068Z` folder. It runs focused sampler,
+training-only replay, durable resume/checkpoint, and continual metric tests
+before invoking the runner. Generated checkpoints/results stay in a separate
+`/kaggle/working/task2_clean_retention_study` folder and outside Git.
+
+No new training or test evaluation was run locally. JSON, all four notebook
+code cells, the exact source pin, empty outputs, runner syntax/help, focused
+tests and the repository test suite were checked locally. Historical Tesla T4
+Task 2 measurements averaged about 21.35 seconds per train-plus-full-validation
+epoch; therefore the two-arm eight-epoch cap is about 5.7 measured GPU minutes,
+with prior selected-partition test inference about 18.4 seconds. Allow roughly
+8–12 minutes total for hashing, replay preparation, validation selection,
+plots, and Kaggle overhead. This estimate is not a promised runtime or result.

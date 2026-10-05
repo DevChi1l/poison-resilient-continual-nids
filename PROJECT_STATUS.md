@@ -704,3 +704,48 @@ the opt-in real-data training smoke was skipped. `.venv/bin/python -m pytest
 parsing and `git diff --check` passed. The direct `.venv/bin/pytest` wrapper
 does not add the repository root to `sys.path` in this local environment, so
 use the verified module-form command above.
+
+## 2026-10-05: clean Task 2 retention study prepared for Kaggle
+
+Started from the user-verified unified commit
+`9da2f2818b772d49f5fb44c4b205d4bff88df4ea`; local and remote matched after
+fetch. Preserved the working demo, all original result artifacts, untracked
+`codexmem.tx`, and `origin/docs/faculty-presentation` at `bc2dbbf`. No local
+training, new test inference, main merge, app change, or PPT/PDF edit occurred.
+
+Inspected the current Task 2 implementation. The existing view samples
+uniformly across eight supplied classes, the verified Task 1 replay has 100
+distinct rows per old class, checkpoint expansion preserves old head rows and
+seeds the new head, Task 2 AdamW inherits model learning rate 0.001, and the
+historical trainer selected by validation loss. These are documented as
+hypotheses motivating an exploratory follow-up, not established causes of the
+historical result.
+
+Published backward-compatible source in `e3494d0` for optional exact class
+quotas and clean-validation macro-F1 checkpoint selection. Published the
+GPU-only auditable runner, finalized at
+`57009efe09f48ee742576bcc5d089a71c30b4f0e`. It compares only A (existing
+500-row replay/current sampler, lr 0.0001) and B (5,000 distinct training-only
+rows per old class plus 62.5% original-proportion old exposure/37.5% uniform
+new exposure, lr 0.0001). B is explicitly a combined intervention. Both retain
+architecture, expansion seed/state, batch 256, 70,576 draws, maximum eight
+epochs and patience three. Durable latest/best/resume state selects by full
+clean-validation macro-F1 and records exposure/unique-row counts.
+
+Added `notebooks/kaggle_review2_task2_clean_retention.ipynb`, pinned to
+`57009ef`. It validates both private inputs and split/preprocessing/replay
+isolation, locks the validation-only configuration choice, and evaluates only
+the selected checkpoint on fixed test rows. Planned output includes
+old/new/combined metrics, per-class recall/F1, Benign FPR, forgetting,
+normalized confusion matrices, training curves, checkpoint/hash provenance,
+and an explicit true/false report for the 85% combined-accuracy target.
+Historical Task 2 artifacts remain separate and unchanged.
+
+The complete local unittest suite passed 71 tests with the single opt-in real-
+data smoke skipped. Runner compilation/help and notebook JSON/Python syntax,
+empty-output/source-pin checks passed; `git diff --check` passed. Full prepared
+arrays and a Kaggle GPU are unavailable locally, so the new study remains
+unexecuted. Earlier Tesla T4 timings imply at most about 5.7 minutes for 16
+train-plus-validation epochs and about 18.4 seconds for selected test
+inference; budget 8–12 minutes overall for input hashing/preparation/plots and
+runtime overhead.
