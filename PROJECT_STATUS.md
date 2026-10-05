@@ -1,6 +1,6 @@
 # Project Status
 
-Last updated: 2026-10-05 (full Task 2 reviewed; local artifact demo completed)
+Last updated: 2026-10-05 (clean Task2 acquisition notebook prepared; awaiting Kaggle run)
 
 ## Current state
 
@@ -844,3 +844,31 @@ passed the existing semantic checks. Altering one extracted JSON file was
 rejected. The notebook selector accepted one valid folder, rejected an
 ambiguous ZIP+folder pair, and rejected altered evidence. Notebook JSON and
 four code-cell syntax checks passed. No training was launched.
+
+## 2026-10-05: clean Task2 acquisition study awaiting Kaggle execution
+
+Started from matching local/remote unified HEAD `129c007face039a985e1abce51a70e431731485e`.
+The uploaded frozen-B run's clean arm exactly reproduced prior B: combined
+accuracy `0.9769527915097729`, macro-F1 `0.670591558187877`, old accuracy
+`0.9874783015309689`, new accuracy `0.02350982350982351`, and zero
+Infiltration recall. This is inadequate eight-class acquisition. The
+unchanged quarantine gate rejected 3,991/4,000 poison and 2,165/21,000 clean
+training replay rows; nine poison rows remained. It is not network blocking.
+
+No blocking implementation bug was confirmed after class/feature/label,
+checkpoint/head, gradient, exposure, preprocessing and selection audits.
+Published the source runner and old-only optional distillation at
+`d8711cf5e35b23951ad705964581ae4ef7a58fc7`; full local suite: 82 passed,
+one opt-in skipped, 65 subtests. The new one-notebook two-clean-arm protocol
+is pinned to that SHA. A uses revised exposure/coverage and CE; B is identical
+except frozen Task1 teacher KD on old replay only. Max 12 epochs/arm, patience
+four, validation-only selection. No research-data training occurred locally.
+Details and measured-runtime extrapolation are in the final walkthrough section.
+
+Next: run `notebooks/kaggle_review2_task2_clean_acquisition.ipynb` on Kaggle,
+preserve its complete private output, then review every class's recall/F1,
+new/old accuracy and forgetting before any app integration. Pending final
+integration: latest/historical playback, correctly paired inference
+checkpoints, live quarantine evidence, preflight, findings Markdown and
+teacher script. Working demo, original results, faculty branch and PPT/PDF
+are unchanged. Untracked `codexmem.tx` remains untouched.

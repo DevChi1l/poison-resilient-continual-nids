@@ -1266,3 +1266,64 @@ cases. Notebook JSON/code syntax passed. No research training, app/PPT/PDF
 work, archive mutation, or main merge occurred. The next action is to run the
 notebook on Kaggle with the prepared-data and Task1 inputs plus these two
 extracted folders, then preserve the complete private output for review.
+
+---
+
+## 2026-10-05: clean Task2 acquisition notebook prepared; stop for Kaggle result
+
+Owner: unified A+B+C, `feature/unified-novelty`. Began from matching
+local/remote `129c007face039a985e1abce51a70e431731485e`. Source published
+first at `d8711cf5e35b23951ad705964581ae4ef7a58fc7`; the new notebook
+pins that exact full SHA. No app, PPT/PDF or main merge changes; original
+archives/results, working demo, faculty branch and `codexmem.tx` preserved.
+
+The uploaded frozen-B clean control had combined accuracy `0.9769527915097729`
+but new-class accuracy `0.02350982350982351` and Infiltration recall zero.
+Do **not** call this successful eight-class learning. Gate audit: 3,991/4,000
+poison rejected, 2,165/21,000 clean rejected, nine poison retained; it reviews
+training data, not packets. Archive/notebook SHA and sample audit findings are
+in the walkthrough. No confirmed blocking implementation bug was found.
+
+Run `notebooks/kaggle_review2_task2_clean_acquisition.ipynb` with Kaggle GPU
+and Internet, attaching the complete prepared folder, complete Task1 folder,
+and original clean-retention results folder or intact ZIP. Defaults are:
+
+```python
+PREPARED_DIR = pathlib.Path('/kaggle/input/notebooks/dvdhere/preparation/review2_large_prepare_20261002T223303_224539Z')
+TASK1_RUN_DIR = pathlib.Path('/kaggle/input/notebooks/dvdhere/full-run-task1/full_task1_20261003T074354_763068Z')
+RETENTION_RESULTS_DIR = pathlib.Path('/kaggle/input/datasets/dvdhere/results-task2/results_ret/task2_clean_retention_study')
+RETENTION_RESULTS_ZIP = None
+OUTPUT_DIR = pathlib.Path('/kaggle/working/task2_clean_acquisition_study')
+```
+
+Source runner is `scripts/run_task2_acquisition.py`. A/B share Task1 best,
+25,000 training-only replay, seeded initial expansion, LR `0.0003`, batch
+256, 141,152 draws/epoch with 40% old-by-original-proportion, 40%
+Infiltration, 10% Webattack, 10% Portscan, max 12 epochs, patience four,
+and validation macro-F1 selection. Only B adds weight-0.5, temperature-2
+old-replay-only KD. Historical B comparison is a combined intervention; A/B
+isolates KD. Checkpoint/arm choice is validation-only; only the selected arm
+gets fixed-test evaluation once. Exact replay manifest/hashes, best/latest
+resume, class exposure and full metrics must pass. If interrupted, preserve
+the entire output folder privately and set `RESUME_RUN_DIR` in the notebook.
+
+Required output root: `protocol.json`, `environment.json`, both arm folders,
+`selection_lock.json`, `selected_old_test_metrics.json`,
+`selected_new_test_metrics.json`, `selected_combined_test_metrics.json`,
+`selected_test_summary.json`, `study_manifest.json`, plus normalized
+confusion/per-class plots. Each arm folder should have `arm_config.json`,
+`latest.pt`, `best.pt`, `history.json`, `training_manifest.json`,
+`arm_summary.json`, `validation_metrics.json`, and `training_curves.png`.
+Report per-class recall/F1, Infiltration change, old-retention change,
+new accuracy, Benign FPR and forgetting. High aggregate accuracy cannot
+override failed new classes. This is exploratory because prior test results
+were inspected. No Kaggle run or local research-data training was performed.
+
+Full local suite: 82 passed, one opt-in real-data test skipped, 65 subtests.
+The uploaded clean frozen-B arm measured 97.800 seconds over four
+train-plus-validation epochs (24.45 seconds/epoch at 70,576 draws). The
+24-epoch maximum at doubled draws plus teacher work is an extrapolated
+12–17 GPU minutes; allow 18–30 minutes including hashing/test/overhead.
+After results review, scope the final app integration only then: latest and
+historical playback, paired inference checkpoints, live quarantine evidence,
+preflight, findings Markdown, and five-minute teacher script.

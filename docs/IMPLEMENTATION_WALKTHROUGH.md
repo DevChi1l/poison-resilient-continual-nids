@@ -2231,3 +2231,75 @@ Local validation passed 77 tests plus 65 subtests with only the opt-in real-
 data training smoke skipped. Focused replay/attack/gate/sampler/checkpoint
 checks, dependency-light notebook checks, compileall, notebook/evidence JSON
 validation, exact source-pin verification and `git diff --check` also passed.
+
+---
+
+## Clean Task2 acquisition follow-up prepared (2026-10-05)
+
+The uploaded frozen-B `results.zip` (SHA-256
+`d3ce751cf99f7c2460fd2760d5c44ee290101bd4f1f06c8adba4231b63da469e`)
+passed ZIP integrity and path/symlink checks; named JSON was read without
+executing archived code or unpickling checkpoints. The executed uploaded
+`task2-ret-poison-v2.ipynb` (SHA-256
+`06752d8fd6b42af98c63b44b80ac68730ff49a807ecdeef3f15e3a86322cb613`)
+contains four executed code cells and a successful pinned-source runner call.
+The clean arm reproduced earlier B metrics exactly. Combined test accuracy
+was `0.9769527915097729`, macro-F1 `0.670591558187877`, old accuracy
+`0.9874783015309689`, new accuracy `0.02350982350982351`, and Infiltration
+recall zero: **retention with inadequate acquisition**. The existing gate
+rejected 3,991/4,000 poisoned and 2,165/21,000 clean replay rows; nine
+poisoned rows remained. It reviews training data, not network packets, and
+its threshold is unchanged.
+
+We audited fixed class IDs (0–4 old; 5 Infiltration, 6 Webattack, 7 Portscan),
+54-feature/label row alignment, one frozen continual preprocessing pass,
+Task1 checkpoint expansion, new-head gradients, deterministic exposure, and
+validation-only macro-F1 selection. Synthetic gradient/resume tests passed.
+A bounded seed-42 training-only audit of 10,000 Benign and 10,000
+Infiltration original Parquet rows found 20,000/20,000 labels aligned with
+saved split/label arrays. Under the established negative/nonfinite-to-missing
+rule, 4,342 Benign and 4,482 Infiltration sampled rows had missing values;
+four exact feature vectors were shared across the two samples. These are
+**sample findings**, not population overlap rates or proven causes of zero
+recall. No blocking implementation bug was confirmed. Frozen B gave
+Infiltration 8,822/70,576 draws per epoch from 66,400 training rows and
+selected epoch one; inadequate exposure is a hypothesis to test.
+
+Published source first as `d8711cf5e35b23951ad705964581ae4ef7a58fc7`.
+The one unexecuted `notebooks/kaggle_review2_task2_clean_acquisition.ipynb`
+pins it. Both arms start from identical seeded Task1-best expansion and the
+verified 25,000 distinct training-only old replay rows. The runner checks
+every replay ID and feature/label hash against the original retention
+manifest and never double-preprocesses replay. Both arms use seed 42, LR
+`0.0003`, batch 256, 141,152 draws (552 steps) per epoch, max 12 epochs,
+patience four, and clean-validation macro-F1 checkpoint selection. Fixed
+quotas allocate 40% old replay in original old-training proportions, 40%
+Infiltration, 10% Webattack and 10% Portscan; actual draws and unique rows
+are saved per epoch. A uses mean eight-class CE. B adds `0.5 × T² KL` at
+`T=2` from the frozen Task1 teacher on **old replay rows and old five logits
+only**, normalized by full batch size. A versus B isolates KD. Compared with
+historical B, revised sampling, exposure and LR are a combined intervention.
+
+Durable best/latest checkpoints restore optimizer, scaler, RNG, history and
+patience at completed epoch boundaries, with KD settings in the strict
+resume header. Select the configuration by highest clean-validation combined
+macro-F1; exact ties use lower Benign FPR, higher Infiltration recall, then
+name. A selection lock precedes fixed-test access. Only the selected
+checkpoint is tested once. Outputs include all class recall/F1, old/new/
+combined metrics, forgetting, Benign FPR, normalized confusions, exposure,
+curves and provenance. Report whether Infiltration improves and retention
+deteriorates. High accuracy with failed new classes remains inadequate.
+Historical test results were already inspected, so this is exploratory.
+
+Local validation: 82 tests passed, one opt-in real-data smoke skipped, 65
+subtests passed. No research-data training was launched. Uploaded clean-B
+timing was 97.800 seconds over four train-plus-full-validation epochs, or
+24.45 seconds/epoch at 70,576 draws. Doubling draws and adding teacher work
+makes the 24-epoch maximum roughly 12–17 GPU minutes by extrapolation, plus
+hashing, replay preparation, test inference and notebook overhead; allow
+about 18–30 minutes, not a guarantee.
+
+Final local app integration remains **pending result review**: latest and
+historical playback, correctly paired inference checkpoints, live quarantine
+evidence, preflight, final findings Markdown, and teacher script. No
+unobserved results may be integrated; PPT/PDF files remain untouched.
