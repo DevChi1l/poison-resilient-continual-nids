@@ -1533,3 +1533,33 @@ as training-data review. Final Markdown/teacher narrative must separate
 Transformer continual/poisoning evidence from joint XGBoost diagnosis and
 include weak Infiltration detection if it persists. No further open-ended
 sampling sweep or architecture replacement is planned.
+
+---
+
+## Faculty storyboard handoff — 2026-10-07
+
+Use `notebooks/project_results_storyboard.ipynb` for the direct faculty visual
+walkthrough. It is a read-only evidence notebook: no training, checkpoint
+mutation, Streamlit mutation, PPT/PDF work, or faculty-branch work belongs in
+it. The first code cell is the only place a presenter normally needs to edit.
+
+Optional inputs are, in order: complete prepared-data folder; full clean
+eight-class run folder; full Task 1 run folder; original historical Task 2 ZIP
+or extracted folder; later retention/poisoning evidence ZIP/folder; and the
+verified XGBoost diagnostic ZIP/folder. Local ignored `data/...` paths and
+Kaggle `/kaggle/input/...` paths are both supported. Auto-discovery is
+strictly exactly-one-candidate; otherwise set the selector explicitly.
+
+Without private artifacts, the notebook still shows verified dataset/split
+facts, the actual full-clean model configuration, static test/per-class metrics
+and row-normalized confusion matrix, Task 1 summary, historical three-arm
+poison/filter comparison, gate accounting, limitations, a 30-second faculty
+script, and five viva answers. Full-clean learning curves need the matching
+`history.json`. XGBoost is intentionally absent until a matching diagnostic
+test artifact is attached; when present it is labelled joint-training
+diagnosis, never continual-learning or poisoning-defense evidence.
+
+The authoring runtime had no mounted user local Git worktree; connected remote
+`feature/unified-novelty` was checked at `32ef91b572fa92a82a3d8f7667b98e9c2d7181ac` before publication.
+Private artifacts were therefore unavailable during authoring and remain
+outside Git.

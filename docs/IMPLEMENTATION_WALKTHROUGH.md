@@ -2492,3 +2492,45 @@ final app update should play back only verified evidence and pair every
 checkpoint with its own preprocessing; quarantine remains training-data
 review, not live packet blocking. No PPT/PDF edit or UI change belongs to
 this benchmark preparation task.
+
+---
+
+## Presentation storyboard: whole-project visual evidence (2026-10-07)
+
+`notebooks/project_results_storyboard.ipynb` is the faculty-facing read-only
+story of the implemented research pipeline. It is intentionally separate from
+the training notebooks and from the Streamlit demo. It never imports a trainer,
+opens a checkpoint for mutation, or executes code from result archives.
+
+The sections are: (1) research question and pipeline diagram; (2) dataset
+ledger, all eight broad-class counts, and fixed split chart; (3) actual custom
+tabular Transformer configuration and plain-language terms; (4) full clean
+test summary, per-class table, rare-class view, row-normalized confusion
+matrix, plus learning curves only when history is attached; (5) Task 1→Task 2
+timeline, replay rationale, Task 1 evidence, and static-vs-continual
+preprocessing; (6) historical clean/poisoned/filtered grouped metrics and
+80/80 poison, 42/420 clean-reject, 378/500 retained gate accounting; (7)
+conditional XGBoost precision/recall diagnosis; and (8) demonstrated-vs-
+limitations dashboard, short faculty narrative, and viva questions.
+
+The static fallback is tied to the reviewed
+`full_clean_20261003T045146_553311Z/test_metrics.json`: 98.2862% accuracy,
+75.7756% macro-F1, 0.44567% Benign FPR, with 5.91% Infiltration, 12.69%
+Webattack, and 73.37% Portscan recall. The historical Task 2 fallback is tied
+to `docs/evidence/task2_targeted_summary.json`: clean/poisoned/filtered
+accuracy 60.10047/44.91359/60.77219%, macro-F1
+56.64585/53.79282/55.78506%, and Benign FPR
+49.89118/68.85998/46.66276%. The narrative explicitly records the harmed DoS
+recall and increased old-attack→Benign errors after filtering and limits the
+claim to single-seed evidence.
+
+The XGBoost section behaves differently on purpose. It requires an attached
+result whose test accuracy/macro-F1/Benign-FPR and Infiltration
+precision/recall match the reviewed diagnostic fingerprint. No XGBoost
+fallback chart is shown if that artifact is missing or mismatched. This keeps
+the joint-training diagnostic separate from continual/poisoning evidence.
+
+Generated figures use only Matplotlib and are saved to a timestamped Kaggle
+working directory or ignored local `data/outputs`. Pandas/Numpy/standard
+library handle tables and evidence loading. Missing or ambiguous inputs are
+printed clearly instead of silently selecting among result folders.

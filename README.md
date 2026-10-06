@@ -183,3 +183,5 @@ This README must remain accurate as the project changes. For every merged compon
 3. Only observed commands and generated results are added. Removed or changed commands must be corrected in the same merge.
 
 The detailed, persistent source of truth remains the root context files, especially [PROJECT_STATUS.md](PROJECT_STATUS.md), [ARCHITECTURE.md](ARCHITECTURE.md), and [HANDOFF.md](HANDOFF.md).
+
+Faculty results storyboard: [notebooks/project_results_storyboard.ipynb](notebooks/project_results_storyboard.ipynb).

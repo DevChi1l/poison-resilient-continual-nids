@@ -1006,3 +1006,46 @@ source/notebook/docs remain local uncommitted; their hashes are pinned in the
 notebook, but Kaggle execution must wait until the exact files are published.
 Do not mislabel the current branch as pushed. Existing app, original ZIP,
 faculty branch and PPT/PDF files remain untouched.
+
+---
+
+## 2026-10-07: faculty project-results storyboard
+
+Starting connected-remote HEAD was `32ef91b572fa92a82a3d8f7667b98e9c2d7181ac` on
+`feature/unified-novelty`; a compare check showed the branch identical before
+this scoped commit. This ChatGPT authoring runtime did not mount the user's
+existing local Git worktree, so no claim is made about untracked local files;
+the remote lease is used to prevent overwriting concurrent branch work.
+
+Added `notebooks/project_results_storyboard.ipynb` as a read-only faculty
+storyboard. It launches no training and imports no model trainer. One top
+configuration cell accepts optional prepared-data, full-clean, Task 1,
+historical Task 2, later retention/poisoning, and XGBoost paths. Discovery is
+accepted only for exactly one valid candidate; ambiguous candidates are printed
+and require an explicit selector. ZIP evidence is read by named members after
+path/encryption/symlink checks and is never executed.
+
+Presentation-ready verified fallbacks are deliberately bounded to: the
+9,167,581-row/59-column dataset audit and eight broad-class counts; the fixed
+6,417,308/1,375,139/1,375,134 split; the actual 54/64/4-head/2-layer/128-MLP,
+batch-256, lr-.001, seed-42 static configuration; the reviewed
+`full_clean_20261003T045146_553311Z/test_metrics.json`; the reviewed full
+Task 1 summary; and `docs/evidence/task2_targeted_summary.json`. XGBoost
+numbers are **not** rendered as a fallback: the section requires an attached
+diagnostic test artifact matching the reviewed metric fingerprint. Full-clean
+learning curves likewise require `history.json`.
+
+No private result folders or ZIPs were mounted in this authoring checkout, so
+prepared/full-clean/Task1/historical-Task2/retention/XGBoost selectors are all
+expected to print “not available in this checkout” until the user attaches or
+sets them. Missing evidence is never treated as zero. Generated figures go to a
+timestamped `/kaggle/working/project_results_storyboard_*` directory on
+Kaggle or `data/outputs/project_results_storyboard_*` locally; `data/**`
+is already ignored by Git.
+
+Validation before publication: notebook JSON parsed; every code cell has empty
+saved output/execution count; every code cell is preceded by Markdown; the
+notebook contains no training-call tokens; and a no-private-artifact runtime
+smoke completed successfully in the artifact build environment. The scoped
+commit changes only this notebook, README, PROJECT_STATUS, HANDOFF, and
+`docs/IMPLEMENTATION_WALKTHROUGH.md`.
